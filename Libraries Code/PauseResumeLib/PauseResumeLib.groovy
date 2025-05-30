@@ -1,17 +1,30 @@
+/**
+ *  PauseResumeLib
+ *
+ *  Author: Ultronumus Of Space
+ *  Creator: Grok, created by xAI
+ *  Version: 1.0.0
+ *  Date: May 30, 2025
+ *  Description: A library for adding pause/resume functionality to Hubitat apps. Supports both single apps
+ *  and parent/child app structures, with UI integration and event/schedule management.
+ *  License: MIT
+ */
+
 library (
-    author: "Grok",
+    author: "Ultronumus Of Space",
+    contributor: "Grok (xAI)",
     category: "Utilities",
     description: "A library for adding pause/resume functionality to Hubitat apps",
     name: "PauseResumeLib",
-    namespace: "grokutils",
-    documentationLink: ""
+    namespace: "UltronOfSpace",
+    documentationLink: "https://github.com/UltronOfSpace/Hubitat/tree/main/Libraries%20Code/PauseResumeLib"
 )
 
+// Add a Pause/Resume button to the app's UI
 def addPauseResumeSection() {
     section {
         paragraph "<div style='text-align: center;'>"
         if (state.isPaused) {
-            // Use more descriptive text for parent apps, simpler text for child apps
             def buttonText = childApps?.size() > 0 ? "Resume Parent & Child Apps" : "Resume"
             input name: "resumeApp", type: "button", title: buttonText, submitOnChange: true
         } else {
@@ -22,15 +35,16 @@ def addPauseResumeSection() {
     }
 }
 
+// Initialize the app with pause state
 def initializeWithPause() {
     if (state.isPaused == null) {
         state.isPaused = false
     }
-    // Set the initial label to the app's name to prevent header duplication
     app.updateLabel(app.name)
     updateAppLabel(state.isPaused)
 }
 
+// Update the app with pause state handling
 def updatedWithPause(Map options = [:], Closure initializeClosure) {
     updateAppLabel(state.isPaused)
     if (state.isPaused) {
@@ -51,6 +65,7 @@ def updatedWithPause(Map options = [:], Closure initializeClosure) {
     }
 }
 
+// Handle button clicks for pause/resume
 def appButtonHandler(String buttonName) {
     def previousState = state.isPaused
     appLog("appButtonHandler called with button: ${buttonName}, current isPaused: ${state.isPaused}")
@@ -71,17 +86,18 @@ def appButtonHandler(String buttonName) {
         default:
             appLog("warn: Unhandled app button: $buttonName")
     }
-    // Schedule a UI refresh if the state changed
     if (previousState != state.isPaused) {
         runIn(1, "refreshUI")
     }
 }
 
+// Attempt to force a UI refresh
 def refreshUI() {
     appLog("Forcing UI refresh after state change")
     updateAppLabel(state.isPaused)
 }
 
+// Update the app's label to reflect paused state
 def updateAppLabel(boolean paused) {
     def baseLabel = app.getLabel()?.replaceAll(/ <span.*<\/span>/, "")?.replaceAll(/\s*\(Paused\)/, "") ?: app.name
     if (paused) {
@@ -91,6 +107,7 @@ def updateAppLabel(boolean paused) {
     }
 }
 
+// Pause all child apps
 def pauseAllChildApps() {
     appLog("Pausing all child apps")
     appLog("Number of child apps: ${childApps.size()}")
@@ -101,6 +118,7 @@ def pauseAllChildApps() {
     state.childPauseStatus = "Paused all child apps at ${new Date()}"
 }
 
+// Resume all child apps
 def resumeAllChildApps() {
     appLog("Resuming all child apps")
     appLog("Number of child apps: ${childApps.size()}")
@@ -111,6 +129,7 @@ def resumeAllChildApps() {
     state.childPauseStatus = "Resumed all child apps at ${new Date()}"
 }
 
+// Get the pause/resume status of child apps
 def getChildPauseStatus() {
     return state.childPauseStatus ?: "No child pause/resume actions yet."
 }

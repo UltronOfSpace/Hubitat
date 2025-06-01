@@ -1,0 +1,63 @@
+/**
+ * AppControlLibChildAppTemplate
+ *
+ * A child app template for Hubitat using AppControlLib to provide pause/resume functionality under a parent app.
+ *
+ * Author: Ultronumus Of Space (with help from SuperGrok)
+ * Date: 2025-06-01
+ * License: MIT
+ */
+
+definition(
+    name: "AppControlLibChildAppTemplate",
+    namespace: "UltronumusOfSpace",
+    author: "Ultronumus Of Space",
+    description: "A greasy little punk kid app for Hubitat",
+    category: "Convenience",
+    parent: "UltronumusOfSpace:AppControlLibParentAppTemplate",
+    iconUrl: "",
+    iconX2Url: "",
+    importUrl: "https://raw.githubusercontent.com/UltronumusOfSpace/Hubitat/main/Libraries%20Code/AppControlLib/AppControlLibChildAppTemplate.groovy"
+)
+
+#include UltronumusOfSpace.AppControlLib
+
+preferences {
+    page(name: "mainPage", title: "", install: true, uninstall: true)
+}
+
+def mainPage() {
+    dynamicPage(name: "mainPage", title: "", install: true, uninstall: true) {
+        section("App Name") {
+            input "appName", "text", title: "Enter a name for this instance of the application (optional)", required: false, submitOnChange: true
+        }
+        section {
+            renderPauseResumeControls()
+        }
+        section("Placeholder for Additional Code") {
+            paragraph "Add your custom settings here, bud!"
+        }
+    }
+}
+
+def installed() {
+    log.info "${app.getName()} installed"
+    enablePauseResume()
+}
+
+def updated() {
+    log.info "${app.getName()} updated"
+    if (settings.appName) {
+        app.updateLabel(settings.appName)
+        updateAppLabel(state.isPaused ?: false)
+    }
+    enablePauseResume()
+}
+
+def uninstalled() {
+    log.info "${app.getName()} uninstalled"
+}
+
+def initialize() {
+    // Optional: Add subscriptions or schedules here
+}

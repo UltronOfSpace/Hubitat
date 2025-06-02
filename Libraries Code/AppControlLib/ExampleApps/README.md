@@ -9,7 +9,7 @@ Welcome to the greasy Example Apps for AppControlLib! These here examples show y
 
 ## How to Use These Examples
 
-Each example got its own README with all the deets on how to get ‘em installed and runnin’ on your Hubitat setup. You’ll need to install the AppControlLib library first—check out the [main README](../README.md) for how to do that. Then, head into the example’s folder, follow the steps in its README, and you’ll be good to go faster than I can roll a six-paper joint!
+Each example got its own README with all the deets on how to get ‘em installed and runnin’ on your Hubitat setup. You’ll need to install the AppControlLib library first—check out the [AppControlLib README](../README.md) for how to do that. Then, head into the example’s folder, follow the steps in its README, and you’ll be good to go faster than I can roll a six-paper joint!
 
 ## Get at Me
 

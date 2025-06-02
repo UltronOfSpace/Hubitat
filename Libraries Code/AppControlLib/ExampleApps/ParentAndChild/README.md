@@ -22,7 +22,7 @@ If you’ve got a bunch of child apps to wrangle, this example’s the way to go
 
 Before you can get this goin’, you gotta have some stuff ready:
 
-- **AppControlLib**: You need this library, or you’re dumber than a bag of hammers! Check the [AppControlLib README](../../Libraries%20Code/AppControlLib/README.md#how-to-get-it-installed-in-your-hubitat-smart-controller-thingy) for how to get it.
+- **AppControlLib**: You need this library, or you’re dumber than a bag of hammers! Check the [AppControlLib README](../../README.md) for how to get it.
 
 ---
 

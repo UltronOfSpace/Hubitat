@@ -1,6 +1,6 @@
 # Example Apps for AppControlLib
 
-Welcome to the greasy Example Apps for AppControlLib! These here examples show you how to use the [AppControlLib](../Libraries%20Code/AppControlLib/README.md) library to make your Hubitat apps even more decent. I whipped up a couple of examples to get you started, whether you’re runnin’ a big boss app with a bunch of little punk kid apps or just a lone wolf app that don’t need nobody.
+Welcome to the greasy Example Apps for AppControlLib! These here examples show you how to use the [AppControlLib](../README.md) library to make your Hubitat apps even more decent. I whipped up a couple of examples to get you started, whether you’re runnin’ a big boss app with a bunch of little punk kid apps or just a lone wolf app that don’t need nobody.
 
 ## What’s in Here
 

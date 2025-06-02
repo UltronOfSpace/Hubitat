@@ -43,7 +43,7 @@ This way’s recommended ‘cause it’s so easy even a greasy burger gut shirtl
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Libraries%20Code/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!

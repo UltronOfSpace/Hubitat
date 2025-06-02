@@ -5,7 +5,7 @@ Welcome to the greasy Example Apps for AppControlLib! These here examples show y
 ## What’s in Here
 
 - [**ParentAndChild**](ParentAndChild/README.md): This example got a big boss app (`AppControlLib Parent App Example`) that makes a bunch of little punk kid apps and tells ‘em what to do, plus the little punk kid app (`AppControlLib Child App Example`) that listens to the big boss. Perfect for when you’re managin’ a whole crew of apps.
-- [**Standalone**](StandAlone/README.md): This example’s a lone wolf app that don’t need nobody—just its own pause button to chill out whenever you want. Great for a single app that’s doin’ its own thing.
+- [**StandAlone**](StandAlone/README.md): This example’s a lone wolf app that don’t need nobody—just its own pause button to chill out whenever you want. Great for a single app that’s doin’ its own thing.
 
 ## How to Use These Examples
 

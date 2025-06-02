@@ -4,12 +4,12 @@ Welcome to the greasy Example Apps for AppControlLib! These here examples show y
 
 ## What’s in Here
 
-- [**ParentAndChild**](./ParentAndChild/AppControlLibParentAndChildExample_README.md): This example got a big boss app (`AppControlLib Parent App Example`) that makes a bunch of little punk kid apps and tells ‘em what to do, plus the little punk kid app (`AppControlLib Child App Example`) that listens to the big boss. Perfect for when you’re managin’ a whole crew of apps.
-- [**Standalone**](./Standalone/AppControlLibStandaloneExample_README.md): This example’s a lone wolf app that don’t need nobody—just its own pause button to chill out whenever you want. Great for a single app that’s doin’ its own thing.
+- [**ParentAndChild**](ParentAndChild/README.md): This example got a big boss app (`AppControlLib Parent App Example`) that makes a bunch of little punk kid apps and tells ‘em what to do, plus the little punk kid app (`AppControlLib Child App Example`) that listens to the big boss. Perfect for when you’re managin’ a whole crew of apps.
+- [**Standalone**](StandAlone/README.md): This example’s a lone wolf app that don’t need nobody—just its own pause button to chill out whenever you want. Great for a single app that’s doin’ its own thing.
 
 ## How to Use These Examples
 
-Each example got its own README with all the deets on how to get ‘em installed and runnin’ on your Hubitat setup. You’ll need to install the AppControlLib library first—check out the [main README](../Libraries%20Code/AppControlLib/README.md#how-to-get-it-installed-in-your-hubitat-smart-controller-thingy) for how to do that. Then, head into the example’s folder, follow the steps in its README, and you’ll be good to go faster than I can roll a six-paper joint!
+Each example got its own README with all the deets on how to get ‘em installed and runnin’ on your Hubitat setup. You’ll need to install the AppControlLib library first—check out the [main README](../Libraries%20Code/AppControlLib/README.md) for how to do that. Then, head into the example’s folder, follow the steps in its README, and you’ll be good to go faster than I can roll a six-paper joint!
 
 ## Get at Me
 

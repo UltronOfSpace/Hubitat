@@ -76,7 +76,7 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries Code/AppC
 
 #### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](https://github.com/UltronOfSpace/Hubitat/blob/main/Libraries Code/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](AppControlLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)

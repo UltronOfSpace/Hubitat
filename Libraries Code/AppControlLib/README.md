@@ -124,8 +124,8 @@ I ain’t no coder—I’m about as good at makin’ code as Mr. Lahey is at not
 
 I’ve got some examples to show you how this library gets ‘er done:
 
-- [**AppControlLib Parent And Child Example**: The big boss app and its little punk kid apps](../ExampleApps/ParentAndChild/ReadMe.md)—shows you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
-- [**AppControlLib Standalone Example**: The lone wolf app](../ExampleApps/StandAlone/ReadMe.md)—don’t need nobody, just its own pause button.
+- [**AppControlLib Parent And Child Example**: The big boss app and its little punk kid apps](ExampleApps/ParentAndChild/README.md)—shows you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
+- [**AppControlLib Standalone Example**: The lone wolf app](ExampleApps/StandAlone/README.md)—don’t need nobody, just its own pause button.
 
 ---
 

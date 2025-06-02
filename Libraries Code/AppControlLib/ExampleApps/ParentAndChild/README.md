@@ -43,14 +43,14 @@ This way’s recommended ‘cause it’s so easy even a greasy burger gut shirtl
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 #### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](https://github.com/UltronOfSpace/Hubitat/blob/main/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](https://github.com/UltronOfSpace/Hubitat/blob/main/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)
@@ -69,14 +69,14 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentA
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 #### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](https://github.com/UltronOfSpace/Hubitat/blob/main/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](https://github.com/UltronOfSpace/Hubitat/blob/main/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)

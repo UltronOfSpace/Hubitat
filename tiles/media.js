@@ -182,10 +182,10 @@ function mediaDown(entityId, e) {
     if (hasMembers && isOn) {
       openGroupVolumePopup(entityId);
     } else {
-      stateCache[entityId] = 'off';
-      dimLocks[entityId] = Date.now();
+      TileEngine.setState(entityId, 'off');
+      TileEngine.lock(entityId);
       render();
-      TileEngine.callService('media_player', 'turn_off', { entity_id: entityId });
+      TileEngine.callService(entityId, 'off');
     }
   }, 600);
 }
@@ -196,23 +196,23 @@ function mediaUp(entityId, e) {
   clearTimeout(mediaTimer);
   if (mediaHandled) return;
 
-  const s = stateCache[entityId] || 'off';
-  let service;
-  if (s === 'off' || s === 'unavailable') { service = 'turn_on'; stateCache[entityId] = 'on'; }
-  else if (s === 'playing') { service = 'media_pause'; stateCache[entityId] = 'paused'; }
-  else if (s === 'paused') { service = 'media_play'; stateCache[entityId] = 'playing'; }
-  else { service = 'turn_off'; stateCache[entityId] = 'off'; }
+  const s = TileEngine.state(entityId) || 'off';
+  let command;
+  if (s === 'off' || s === 'unavailable') { command = 'on'; TileEngine.setState(entityId, 'on'); }
+  else if (s === 'playing') { command = 'pause'; TileEngine.setState(entityId, 'paused'); }
+  else if (s === 'paused') { command = 'play'; TileEngine.setState(entityId, 'playing'); }
+  else { command = 'off'; TileEngine.setState(entityId, 'off'); }
 
-  dimLocks[entityId] = Date.now();
+  TileEngine.lock(entityId);
   render();
-  TileEngine.callService('media_player', service, { entity_id: entityId });
+  TileEngine.callService(entityId, command);
 }
 
 function mediaSkip(entityId, direction, e) {
   if (!entityId || !e) return;
   e.stopPropagation();
-  const service = direction === 'next' ? 'media_next_track' : 'media_previous_track';
-  TileEngine.callService('media_player', service, { entity_id: entityId });
+  const command = direction === 'next' ? 'nextTrack' : 'previousTrack';
+  TileEngine.callService(entityId, command);
   setTimeout(fetchStates, 1000);
 }
 
@@ -225,9 +225,10 @@ function mediaSeek(entityId, e) {
   const duration = stateCache[entityId + '_duration'] || 0;
   if (!duration) return;
   const seekTo = Math.round(pct * duration);
-  stateCache[entityId + '_position'] = seekTo;
-  stateCache[entityId + '_position_at'] = new Date().toISOString();
-  TileEngine.callService('media_player', 'media_seek', { entity_id: entityId, seek_position: seekTo });
+  TileEngine.setAttr(entityId, 'position', seekTo);
+  TileEngine.setAttr(entityId, 'position_at', new Date().toISOString());
+  // Hubitat seek support varies by driver — send if available
+  TileEngine.callService(entityId, 'setTrackPosition', seekTo);
 }
 
 TileEngine.register('media', {
@@ -279,11 +280,11 @@ TileEngine.register('media', {
 
   toggle(entityId) {
     if (!entityId) return;
-    const s = stateCache[entityId] || 'off';
-    if (s === 'playing') { stateCache[entityId] = 'paused'; TileEngine.callService('media_player', 'media_pause', { entity_id: entityId }); }
-    else if (s === 'paused') { stateCache[entityId] = 'playing'; TileEngine.callService('media_player', 'media_play', { entity_id: entityId }); }
-    else { stateCache[entityId] = 'off'; TileEngine.callService('media_player', 'turn_off', { entity_id: entityId }); }
-    dimLocks[entityId] = Date.now();
+    const s = TileEngine.state(entityId) || 'off';
+    if (s === 'playing') { TileEngine.setState(entityId, 'paused'); TileEngine.callService(entityId, 'pause'); }
+    else if (s === 'paused') { TileEngine.setState(entityId, 'playing'); TileEngine.callService(entityId, 'play'); }
+    else { TileEngine.setState(entityId, 'off'); TileEngine.callService(entityId, 'off'); }
+    TileEngine.lock(entityId);
     render();
   },
 
@@ -301,7 +302,8 @@ TileEngine.register('media', {
     const title = stateCache[entity.id + '_title'] || '';
     const artist = stateCache[entity.id + '_artist'] || '';
     if (pic) {
-      const imgUrl = pic.startsWith('/') ? HA_URL + pic : pic;
+      let imgUrl = pic;
+      imgUrl = imgUrl.replace(/=w\d+-h\d+/, '=w1200-h1200');
       artHtml = `<div class="tile-album-art"><img src="${imgUrl}" alt=""></div>`;
       artCls = ' has-art';
     }
@@ -317,12 +319,15 @@ TileEngine.register('media', {
     const isPlaying = ms === 'playing' || ms === 'paused';
     const { pos, dur } = this.getMediaPosition(entity.id);
     if (isPlaying) {
+      const hasQueue = !!(stateCache[entity.id + '_queue']);
       const prevSvg = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6z"/><path d="M18 18L9.5 12 18 6v12z"/></svg>`;
       const nextSvg = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2z"/><path d="M6 18l8.5-6L6 6v12z"/></svg>`;
-      transportHtml = `<div class="tile-media-controls" onclick="event.stopPropagation()">
-        <button class="media-ctrl-btn" onclick="mediaSkip('${entity.id}','prev',event)">${prevSvg}</button>
-        <button class="media-ctrl-btn" onclick="mediaSkip('${entity.id}','next',event)">${nextSvg}</button>
-      </div>`;
+      if (hasQueue) {
+        transportHtml = `<div class="tile-media-controls" onclick="event.stopPropagation()">
+          <button class="media-ctrl-btn" onclick="mediaSkip('${entity.id}','prev',event)">${prevSvg}</button>
+          <button class="media-ctrl-btn" onclick="mediaSkip('${entity.id}','next',event)">${nextSvg}</button>
+        </div>`;
+      }
     }
     if (dur > 0) {
       const pct = Math.min(100, Math.round((pos / dur) * 100));
@@ -365,7 +370,7 @@ TileEngine.register('media', {
   css: `
 .tile.state-on.type-media .tile-icon-circle {
   background: linear-gradient(145deg, #7b79eb 0%, #5e5ce6 50%, #4e4cd0 100%);
-  box-shadow: 0 2px 6px rgba(94,92,230,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: var(--neu-icon-glow) rgba(94,92,230,0.4), var(--neu-icon-glow-inset);
 }
 .tile-album-art {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
@@ -387,9 +392,10 @@ TileEngine.register('media', {
 }
 .tile.has-art .tile-bottom { position: relative; z-index: 3; }
 .tile.has-art .tile-slider-wrap { z-index: 3; }
+/* !important required: overrides inline styles set by JS dim calculations */
 .tile.has-art {
   border: none !important; overflow: hidden !important;
-  box-shadow: 4px 4px 12px rgba(0,0,0,0.6), -2px -2px 6px rgba(0,0,0,0.2) !important;
+  box-shadow: var(--neu-drop-lg) rgba(0,0,0,0.6), var(--neu-lift-lg) rgba(0,0,0,0.2) !important;
 }
 .tile.has-art .tile-name { color: #fff; }
 .tile.has-art .tile-state { color: rgba(255,255,255,0.7); }
@@ -401,6 +407,7 @@ TileEngine.register('media', {
 .tile-bottom-media {
   display: flex; align-items: center; justify-content: space-between; width: 100%;
 }
+/* !important required: overrides inline dim style max-width */
 .tile-wide .tile-bottom-media { max-width: 70% !important; }
 .tile-media-left { flex: 1; min-width: 0; overflow: hidden; }
 .tile-media-controls {
@@ -477,13 +484,11 @@ TileEngine.register('media', {
 }
 .gvp-track-wrap .tile-slider-track {
   position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  border-radius: 12px; overflow: hidden; cursor: pointer;
-  background: rgba(255,255,255,0.08) !important;
-  border: none !important;
+  width: auto; max-width: none;
+  border-radius: 12px;
 }
 .gvp-track-wrap .tile-slider-fill {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  background: linear-gradient(180deg, rgba(94,92,230,0.7) 0%, rgba(94,92,230,0.35) 100%);
+  background: linear-gradient(180deg, #7b79eb 0%, #5e5ce6 40%, #4e4cd0 100%);
   border-radius: 0 0 12px 12px;
   transition: height 0.15s ease;
 }
@@ -491,21 +496,10 @@ TileEngine.register('media', {
   font-size: 11px; color: rgba(255,255,255,0.7);
   text-align: center;
 }
-.tile.type-media .tile-slider-track {
-  background: rgba(255,255,255,0.08) !important;
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1), 0 0 0 1px rgba(255,255,255,0.05) !important;
-  border: none !important;
-}
 .tile.type-media .tile-slider-fill {
-  background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.15) 100%);
+  background: linear-gradient(180deg, #7b79eb 0%, #5e5ce6 40%, #4e4cd0 100%);
 }
-.tile.state-on.type-media .tile-slider-track {
-  background: rgba(0,0,0,0.1) !important;
-}
-.tile.state-on.type-media .tile-slider-fill {
-  background: linear-gradient(180deg, rgba(94,92,230,0.5) 0%, rgba(94,92,230,0.25) 100%);
-}
+/* !important required: overrides base .tile and .tile-slider-wrap positioning from tiles.css */
 .tile.tile-wide { grid-column: span 2; overflow: hidden; padding: 4% !important; }
 .tile.tile-wide .tile-icon-circle { width: clamp(var(--icon-min), 11%, var(--icon-max)); }
 .tile.tile-wide .tile-bottom { max-width: 45%; }

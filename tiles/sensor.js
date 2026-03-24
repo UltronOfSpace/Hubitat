@@ -3,13 +3,16 @@ TileEngine.register('sensor', {
 
   formatState(entity) {
     if (!entity || !entity.id) return 'Unknown';
-    const s = stateCache[entity.id] || 'unknown';
+    const s = TileEngine.state(entity.id);
     if (s === 'unavailable') return 'No Response';
-    if (entity.id.includes('temperature')) return parseFloat(s) ? Math.round(parseFloat(s)) + '°' : s;
-    if (entity.id.includes('humidity')) return parseFloat(s) ? Math.round(parseFloat(s)) + '%' : s;
-    if (entity.id.includes('battery') || entity.id.includes('load') || entity.id.includes('charge'))
+    // Use entity name or sensorType hint to format the value
+    const hint = (entity.sensorType || entity.name || '').toLowerCase();
+    if (hint.includes('temp')) return parseFloat(s) ? Math.round(parseFloat(s)) + '°' : s;
+    if (hint.includes('humid')) return parseFloat(s) ? Math.round(parseFloat(s)) + '%' : s;
+    if (hint.includes('battery') || hint.includes('load') || hint.includes('charge'))
       return parseFloat(s) ? Math.round(parseFloat(s)) + '%' : s;
-    if (entity.id.includes('illuminance')) return s + ' lx';
+    if (hint.includes('illumin') || hint.includes('light') || hint.includes('lux'))
+      return s + ' lx';
     return s;
   },
 

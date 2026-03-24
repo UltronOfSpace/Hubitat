@@ -53,11 +53,11 @@ TileEngine.register('switch', {
     TileEngine.setState(entityId, wasOn ? 'off' : 'on');
     TileEngine.lock(entityId);
     render();
-    TileEngine.callService('switch', 'toggle', { entity_id: entityId });
+    TileEngine.callService(entityId, wasOn ? 'off' : 'on');
   },
 
   css: `.tile.state-on.type-switch .tile-icon-circle {
   background: linear-gradient(145deg, #3d9eff 0%, #0a84ff 50%, #0070e0 100%);
-  box-shadow: 0 2px 6px rgba(10,132,255,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: var(--neu-icon-glow) rgba(10,132,255,0.4), var(--neu-icon-glow-inset);
 }`
 });

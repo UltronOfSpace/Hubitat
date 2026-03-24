@@ -32,34 +32,29 @@ TileEngine.register('light', {
     if (!entity || !entity.id) return '';
     if (!TileEngine) return '';
     const on = TileEngine.state(entity.id) === 'on';
-    const dimmable = stateCache[entity.id + '_dimmable'];
-    const brightness = stateCache[entity.id + '_brightness'] || (on ? 255 : 0);
-    const bPct = Math.round((brightness / 255) * 100);
+    const dimmable = TileEngine.attr(entity.id, 'dimmable');
+    const brightness = TileEngine.attr(entity.id, 'brightness') || (on ? MAX_BRIGHTNESS : 0);
+    const bPct = Math.round((brightness / MAX_BRIGHTNESS) * 100);
     let dimStyle = '';
     let nameStyle = '';
     let stateStyle = '';
     let sliderHtml = '';
 
     if (dimmable) {
-      // Slider track background
-      const oTrack = bPct / 100;
-      const tMix = (off, on) => Math.round(off + (on - off) * oTrack);
-      const trackBg = on
-        ? `linear-gradient(145deg, rgb(${tMix(46,240)},${tMix(46,240)},${tMix(48,240)}) 0%, rgb(${tMix(28,224)},${tMix(28,224)},${tMix(30,224)}) 50%, rgb(${tMix(19,208)},${tMix(19,208)},${tMix(21,208)}) 100%)`
-        : '';
-      sliderHtml = `<div class="tile-slider-wrap" onclick="event.stopPropagation()"><div class="tile-slider-track" style="background:${trackBg} !important" data-entity="${entity.id}" data-slider-type="brightness" onmousedown="startDim(event)" ontouchstart="startDim(event)"><div class="tile-slider-fill" style="height:${bPct}%"></div></div></div>`;
+      sliderHtml = `<div class="tile-slider-wrap" onclick="event.stopPropagation()"><div class="tile-slider-track" data-entity="${entity.id}" data-slider-type="brightness" onmousedown="startDim(event)" ontouchstart="startDim(event)"><div class="tile-slider-fill" style="height:${bPct}%"></div></div></div>`;
 
+      // Brightness gradient -- canonical formula in applyDimStyle() (tile-engine.js)
       if (on) {
-        const o = Math.round((brightness / 255) * 100) / 100;
+        const o = Math.round((brightness / MAX_BRIGHTNESS) * 100) / 100;
         const mix = (off, on) => Math.round(off + (on - off) * o);
         const s1 = `rgb(${mix(46,255)},${mix(46,255)},${mix(48,255)})`;
         const s2 = `rgb(${mix(35,245)},${mix(35,245)},${mix(37,245)})`;
         const s3 = `rgb(${mix(28,235)},${mix(28,235)},${mix(30,235)})`;
         const s4 = `rgb(${mix(19,224)},${mix(19,224)},${mix(21,224)})`;
-        const bt = 0.08 + (0.9 - 0.08) * o;
-        const bl = 0.05 + (0.6 - 0.05) * o;
+        const bt = 0.08 + (0.9 - 0.08) * o * o;
+        const bl = 0.05 + (0.6 - 0.05) * o * o;
         const sh = 0.6 - 0.25 * o;
-        dimStyle = ` style="background:linear-gradient(145deg, ${s1} 0%, ${s2} 30%, ${s3} 70%, ${s4} 100%);border-top:1px solid rgba(255,255,255,${bt.toFixed(2)});border-left:1px solid rgba(255,255,255,${bl.toFixed(2)});box-shadow:4px 4px 10px rgba(0,0,0,${sh.toFixed(2)}),-2px -2px 6px rgba(255,255,255,${(o*0.08).toFixed(3)}),inset 0 1px 0 rgba(255,255,255,${o})"`;
+        dimStyle = ` style="background:linear-gradient(145deg, ${s1} 0%, ${s2} 30%, ${s3} 70%, ${s4} 100%);border-top:1px solid rgba(255,255,255,${bt.toFixed(2)});border-left:1px solid rgba(255,255,255,${bl.toFixed(2)});box-shadow:var(--neu-drop-lg) rgba(0,0,0,${sh.toFixed(2)}),var(--neu-lift-lg) rgba(255,255,255,${(o*0.08).toFixed(3)}),var(--neu-inset-lg) rgba(255,255,255,${o})"`;
 
         if (o < 0.65) {
           const shadowO = (o / 0.65).toFixed(2);
@@ -97,7 +92,7 @@ TileEngine.register('light', {
     const isDim = TileEngine.attr(entityId, 'dimmable');
 
     if (isDim) {
-      const currentBri = TileEngine.attr(entityId, 'brightness') || (wasOn ? 255 : 0);
+      const currentBri = TileEngine.attr(entityId, 'brightness') || (wasOn ? MAX_BRIGHTNESS : 0);
       const deviceTransition = TileEngine.attr(entityId, 'transition');
       const transitionMs = ((deviceTransition && deviceTransition > 0) ? deviceTransition : TileEngine.defaults.transitionSec) * 1000;
 
@@ -105,26 +100,22 @@ TileEngine.register('light', {
         TileEngine.animateBrightness(entityId, currentBri, 0, transitionMs, 'off');
       } else {
         TileEngine.setState(entityId, 'on');
-        TileEngine.animateBrightness(entityId, 0, 255, transitionMs);
+        TileEngine.animateBrightness(entityId, 0, MAX_BRIGHTNESS, transitionMs);
       }
       render();
 
-      if (wasOn) {
-        TileEngine.callService('light', 'turn_off', { entity_id: entityId });
-      } else {
-        TileEngine.callService('light', 'turn_on', { entity_id: entityId });
-      }
+      TileEngine.callService(entityId, wasOn ? 'off' : 'on');
       return;
     }
 
     TileEngine.setState(entityId, wasOn ? 'off' : 'on');
     TileEngine.lock(entityId);
     render();
-    TileEngine.callService('light', 'toggle', { entity_id: entityId });
+    TileEngine.callService(entityId, wasOn ? 'off' : 'on');
   },
 
   css: `.tile.state-on.type-light .tile-icon-circle {
   background: linear-gradient(145deg, #ffe066 0%, #ffd60a 50%, #e6c009 100%);
-  box-shadow: 0 2px 6px rgba(255,214,10,0.4), inset 0 1px 0 rgba(255,255,255,0.5);
+  box-shadow: var(--neu-icon-glow) rgba(255,214,10,0.4), var(--neu-icon-glow-inset-bright);
 }`
 });

@@ -22,8 +22,8 @@ TileEngine.register('temp_humidity', {
     const offline = T.offlineHtml(entity);
     const ic = T.iconColor(entity);
 
-    const tempRaw = stateCache[entity.id] || '—';
-    const humRaw = stateCache[entity.id2] || '—';
+    const tempRaw = TileEngine.state(entity.id) || '—';
+    const humRaw = TileEngine.state(entity.id2) || '—';
     const temp = parseFloat(tempRaw) ? Math.round(parseFloat(tempRaw)) + '°' : tempRaw;
     const hum = parseFloat(humRaw) ? Math.round(parseFloat(humRaw)) + '%' : humRaw;
 
@@ -31,7 +31,7 @@ TileEngine.register('temp_humidity', {
     const humSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c-2.5 4-5 7-5 10a5 5 0 0 0 10 0c0-3-2.5-6-5-10z"/></svg>`;
 
     // Battery warning (show only if <= 20%)
-    const batRaw = entity.idBat ? (stateCache[entity.idBat] || '') : '';
+    const batRaw = entity.idBat ? (TileEngine.state(entity.idBat) || '') : '';
     const batLevel = parseFloat(batRaw);
     const LOW_THRESHOLD = 20;
     const CRIT_THRESHOLD = 10;
@@ -76,18 +76,21 @@ TileEngine.register('temp_humidity', {
 }
 .tile-dual { padding: 8%; overflow: hidden !important; }
 .tile-dual .tile-dual-top { display: none; }
+/* !important required: overrides base .tile .tile-icon-circle width from tiles.css */
 .tile-dual .tile-val-group .tile-icon-circle {
   margin-bottom: 0;
   width: clamp(var(--icon-min), 44%, var(--icon-max)) !important;
 }
+/* !important required: overrides base .tile-icon-circle background/box-shadow/color from tiles.css */
 .tile-dual .tile-icon-temp {
   background: linear-gradient(145deg, rgba(255,80,60,0.25) 0%, rgba(255,80,60,0.08) 100%) !important;
-  box-shadow: 3px 3px 6px rgba(0,0,0,0.5), -2px -2px 4px rgba(255,100,80,0.1), inset 0 1px 1px rgba(255,150,130,0.2) !important;
+  box-shadow: var(--neu-drop-md) rgba(0,0,0,0.5), var(--neu-lift-md) rgba(255,100,80,0.1), var(--neu-inset-md) rgba(255,150,130,0.2) !important;
   color: rgba(255,130,110,0.8) !important;
 }
+/* !important required: overrides base .tile-icon-circle background/box-shadow/color from tiles.css */
 .tile-dual .tile-icon-hum {
   background: linear-gradient(145deg, rgba(10,132,255,0.25) 0%, rgba(10,132,255,0.08) 100%) !important;
-  box-shadow: 3px 3px 6px rgba(0,0,0,0.5), -2px -2px 4px rgba(60,140,255,0.1), inset 0 1px 1px rgba(100,180,255,0.2) !important;
+  box-shadow: var(--neu-drop-md) rgba(0,0,0,0.5), var(--neu-lift-md) rgba(60,140,255,0.1), var(--neu-inset-md) rgba(100,180,255,0.2) !important;
   color: rgba(100,180,255,0.8) !important;
 }
 .tile-battery-warn {

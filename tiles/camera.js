@@ -38,6 +38,6 @@ TileEngine.register('camera', {
 
   css: `.tile.state-on.type-camera .tile-icon-circle {
   background: linear-gradient(145deg, #4de670 0%, #30d158 50%, #28b84c 100%);
-  box-shadow: 0 2px 6px rgba(48,209,88,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: var(--neu-icon-glow) rgba(48,209,88,0.4), var(--neu-icon-glow-inset);
 }`
 });

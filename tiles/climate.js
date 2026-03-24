@@ -3,7 +3,7 @@ TileEngine.register('climate', {
 
   formatState(entity) {
     if (!entity || !entity.id) return 'Unknown';
-    const s = stateCache[entity.id] || 'unknown';
+    const s = TileEngine.state(entity.id);
     if (s === 'unavailable') return 'No Response';
     return s.replace('_', '/').replace(/\b\w/g, c => c.toUpperCase());
   },
@@ -40,6 +40,6 @@ TileEngine.register('climate', {
 
   css: `.tile.state-on.type-climate .tile-icon-circle {
   background: linear-gradient(145deg, #ff8a80 0%, #ff6961 50%, #e05a53 100%);
-  box-shadow: 0 2px 6px rgba(255,105,97,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+  box-shadow: var(--neu-icon-glow) rgba(255,105,97,0.4), var(--neu-icon-glow-inset);
 }`
 });

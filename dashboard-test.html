@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Home Dashboard (Test)</title>
+<title>Hubitat Dashboard</title>
 <link rel="stylesheet" href="tiles.css">
 </head>
 <body>
@@ -11,6 +11,7 @@
 <div class="sidebar">
   <button class="home-btn" id="homeBtn" onclick="goHome()" title="Go to home room"><svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 2.1L1 12h3v9a1 1 0 0 0 1 1h5v-6a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6h5a1 1 0 0 0 1-1v-9h3L12 2.1z" fill="rgba(255,255,255,0.85)"/></svg></button>
   <div class="floor-tabs" id="floorTabs"></div>
+  <button class="settings-btn" onclick="openSettings()" title="Settings"><svg viewBox="0 0 24 24" style="width:20px;height:20px" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
 </div>
 <div class="main">
   <div class="room-bar" id="roomBar"></div>
@@ -18,198 +19,69 @@
 </div>
 
 <script>
-// --- Dashboard globals (required by tiles.js) ---
-const HA_URL = 'http://192.168.1.11:8123';
-let haToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI4ODFmMGJkMTRiNDA0OGM1YjRhZjdkOGE2ZTJhM2E1MyIsImlhdCI6MTc3NDE2MDY5MiwiZXhwIjoyMDg5NTIwNjkyfQ.FQ-5vShVPiu03xzDYRQ0cgrN6v-rwh_ElxqXgQvnI_E';
-let stateCache = {};
-let dimLocks = {};
+// --- Dashboard globals ---
+const FADE_MS = 200; // transition duration for floor/room tab switches
+const RESIZE_DEBOUNCE_MS = 80;
+const stateCache = {};
+const dimLocks = {};
+let data = {};
 
-const data = {
-  "2nd_floor": {
-    name: "2nd Floor",
-    rooms: {
-      family_room: { name: "Family Room", entities: [
-        { id: "light.family_room_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.family_room_table_lamp", name: "Table Lamp", type: "light" },
-        { id: "light.family_room_ceiling_lamp", name: "Ceiling Lamp", type: "light" },
-        { id: "fan.family_room_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "media_player.family_room_tv_2", name: "TV", type: "media" },
-        { id: "binary_sensor.alarm_zone_19", name: "Window L", type: "door" },
-        { id: "binary_sensor.alarm_zone_20", name: "Window R", type: "door" },
-      ]},
-      landing: { name: "Landing", entities: [
-        { id: "light.landing_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.landing_niche_light", name: "Niche Light", type: "light" },
-        { id: "light.landing_accent_wall_light", name: "Accent Wall", type: "light" },
-        { id: "switch.stairwell", name: "Stairwell", type: "switch" },
-      ]},
-      master_bedroom: { name: "Master Bedroom", entities: [
-        { id: "light.master_bedroom_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.randy_s_table_lamp", name: "Randy's Lamp", type: "light" },
-        { id: "light.elena_s_table_lamp", name: "Elena's Lamp", type: "light" },
-        { id: "light.master_bedroom_floor_lamp", name: "Floor Lamp", type: "light" },
-        { id: "light.armoire_accent_lamp", name: "Armoire Accent", type: "light" },
-        { id: "fan.master_bedroom_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "cover.master_bedroom_shade_windowshade", name: "Shade", type: "cover" },
-        { id: "sensor.master_bedroom_lcd_sensor_temperature", id2: "sensor.master_bedroom_lcd_sensor_humidity", idBat: "sensor.master_bedroom_lcd_sensor_battery", name: "Climate", type: "temp_humidity" },
-        { id: "sensor.ups_load", id2: "sensor.ups_battery_charge", idStatus: "sensor.ups_status", name: "UPS", type: "ups" },
-        { id: "media_player.elenas_clock_2", name: "Elena's Clock", type: "media" },
-        { id: "media_player.randys_clock_2", name: "Randy's Clock", type: "media" },
-      ]},
-      zoes_room: { name: "Zoe's Room", entities: [
-        { id: "light.zoes_room_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.zoes_room_table_lamp", name: "Table Lamp", type: "light" },
-        { id: "fan.zoes_room_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "binary_sensor.alarm_zone_17", name: "Window", type: "door" },
-        { id: "media_player.zoes_mini_2", name: "Mini Speaker", type: "media" },
-        { id: "media_player.zoes_clock_2", name: "Zoe's Clock", type: "media" },
-        { id: "media_player.my_speakers_2", name: "My Speakers", type: "media" },
-      ]},
-      ivan_s_room: { name: "Ivan's Room", entities: [
-        { id: "light.ivans_room_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.ivans_room_table_lamp", name: "Table Lamp", type: "light" },
-        { id: "light.ivans_room_floor_lamp", name: "Floor Lamp", type: "light" },
-        { id: "fan.ivans_room_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "media_player.ivans_clock_2", name: "Ivan's Clock", type: "media" },
-        { id: "binary_sensor.alarm_zone_18", name: "Window", type: "door" },
-      ]},
-    }
-  },
-  "1st_floor": {
-    name: "1st Floor",
-    rooms: {
-      living_room: { name: "Living Room", entities: [
-        { id: "light.living_room_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.living_room_table_lamp", name: "Table Lamp", type: "light" },
-        { id: "light.living_room_floor_lamp_stairs", name: "Lamp (Stairs)", type: "light" },
-        { id: "light.living_room_floor_lamp_window", name: "Lamp (Window)", type: "light" },
-        { id: "fan.living_room_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "light.fireplace_accent_lights", name: "Fireplace", type: "light" },
-        { id: "light.hall_lights", name: "Hall Lights", type: "light" },
-        { id: "light.foyer_front_ceiling_light", name: "Foyer Ceiling", type: "light" },
-        { id: "media_player.living_room_tv_2", name: "TV", type: "media" },
-        { id: "media_player.living_room_speaker_2", name: "Speaker", type: "media" },
-        { id: "media_player.living_room_chromecast_2", name: "Chromecast", type: "media" },
-        { id: "sensor.lcd_sensor_temperature_2", id2: "sensor.lcd_sensor_humidity_2", idBat: "sensor.lcd_sensor_battery_2", name: "Climate", type: "temp_humidity" },
-        { id: "binary_sensor.alarm_zone_1", name: "Glass Break", type: "door" },
-        { id: "binary_sensor.alarm_zone_3", name: "Patio Door", type: "door" },
-        { id: "binary_sensor.alarm_zone_10", name: "Windows", type: "door" },
-      ]},
-      kitchen: { name: "Kitchen", entities: [
-        { id: "light.kitchen_ceiling_lights", name: "Ceiling Lights", type: "light" },
-        { id: "light.kitchen_bar_lights", name: "Bar Lights", type: "light" },
-        { id: "light.kitchen_cabinet_lights", name: "Cabinet Lights", type: "light" },
-      ]},
-      dining_room: { name: "Dining Room", entities: [
-        { id: "light.dining_room_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "binary_sensor.alarm_zone_11", name: "Windows", type: "door" },
-      ]},
-      nook: { name: "Nook", entities: [
-        { id: "light.nook_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "sensor.lcd_sensor_temperature_3", id2: "sensor.lcd_sensor_humidity_3", idBat: "sensor.lcd_sensor_battery_3", name: "Climate", type: "temp_humidity" },
-        { id: "binary_sensor.alarm_zone_4", name: "Nook Door", type: "door" },
-        { id: "binary_sensor.alarm_zone_6", name: "Windows", type: "door" },
-      ]},
-      office: { name: "Office", entities: [
-        { id: "light.office_ceiling_light", name: "Ceiling Light", type: "light" },
-        { id: "light.office_mickey_lamp", name: "Mickey Lamp", type: "light" },
-        { id: "light.office_mickey_projector_lamp", name: "Projector Lamp", type: "light" },
-        { id: "light.office_floor_lamp", name: "Floor Lamp", type: "light" },
-        { id: "light.office_desk_lights", name: "Desk Lights", type: "light" },
-        { id: "fan.office_ceiling_fan", name: "Ceiling Fan", type: "fan" },
-        { id: "media_player.office_speaker_group", name: "Office Speakers", type: "media", groupMembers: [
-          { id: "media_player.office_pair", name: "L + R" },
-          { id: "media_player.office_speaker", name: "C" },
-        ]},
-        { id: "sensor.lcd_sensor_temperature", id2: "sensor.lcd_sensor_humidity", idBat: "sensor.lcd_sensor_battery", name: "Climate", type: "temp_humidity" },
-        { id: "binary_sensor.alarm_zone_12", name: "Window", type: "door" },
-      ]},
-      front_door: { name: "Foyer", entities: [
-        { id: "camera.front_door_fluent", name: "Door Cam", type: "camera" },
-        { id: "binary_sensor.alarm_zone_2", name: "Front Door", type: "door" },
-        { id: "binary_sensor.alarm_zone_9", name: "Window", type: "door" },
-        { id: "binary_sensor.front_door_motion", name: "Motion", type: "motion" },
-        { id: "binary_sensor.front_door_person", name: "Person", type: "motion" },
-      ]},
-      garage: { name: "Garage", entities: [
-        { id: "light.garage_ceiling_lights", name: "Ceiling Lights", type: "light" },
-        { id: "light.garage_outside_lights", name: "Outside Lights", type: "light" },
-        { id: "light.garage_attic_lights", name: "Attic Lights", type: "light" },
-        { id: "binary_sensor.alarm_zone_5", name: "Entry Door", type: "door" },
-        { id: "binary_sensor.garage_ceiling_sensor_motion", name: "Motion", type: "motion" },
-        { id: "sensor.garage_ceiling_sensor_illuminance", name: "Light Level", type: "sensor" },
-      ]},
-    }
-  },
-  outside: {
-    name: "Outside",
-    rooms: {
-      patio: { name: "Patio", entities: [
-        { id: "light.patio_ceiling_lights", name: "Ceiling Lights", type: "light" },
-        { id: "light.pool_light", name: "Pool Light", type: "light" },
-        { id: "light.patio_grill_lights", name: "Grill Lights", type: "light" },
-        { id: "light.patio_soffit_lights", name: "Soffit Lights", type: "light" },
-        { id: "fan.patio_ceiling_fans", name: "Ceiling Fans", type: "fan" },
-        { id: "media_player.patio_speakers_2", name: "Patio Speakers", type: "media" },
-        { id: "sensor.patio_lcd_sensor_temperature", id2: "sensor.patio_lcd_sensor_humidity", idBat: "sensor.patio_lcd_sensor_battery", name: "Climate", type: "temp_humidity" },
-        { id: "camera.patio_south_fluent", name: "South Cam", type: "camera" },
-        { id: "camera.patio_north_fluent", name: "North Cam", type: "camera" },
-      ]},
-      front_yard: { name: "Front Yard", entities: [
-        { id: "light.front_lights", name: "Front Lights", type: "light" },
-        { id: "camera.front_yard_fluent", name: "Front Yard", type: "camera" },
-        { id: "camera.driveway_fluent", name: "Driveway", type: "camera" },
-        { id: "camera.front_walk_fluent", name: "Front Walk", type: "camera" },
-        { id: "camera.side_gate_fluent", name: "Side Gate", type: "camera" },
-        { id: "camera.culdesac_fluent", name: "Culdesac", type: "camera" },
-      ]},
-      back_yard: { name: "Back Yard", entities: [
-        { id: "camera.utility_area_fluent", name: "Utility Area", type: "camera" },
-        { id: "camera.back_gate_fluent", name: "Back Gate", type: "camera" },
-      ]},
-      garden: { name: "Garden", entities: [
-        { id: "light.garden_pillar_light", name: "Pillar Light", type: "light" },
-        { id: "light.garden_path_lights", name: "Path Lights", type: "light" },
-      ]},
-      shed: { name: "Shed", entities: [
-        { id: "light.shed_exterior_light", name: "Exterior", type: "light" },
-        { id: "light.shed_ceiling_lights", name: "Ceiling", type: "light" },
-      ]},
-    }
-  },
-  home: {
-    name: "Home",
-    rooms: {
-      thermostat_1_nativezone: { name: "Climate", entities: [
-        { id: "climate.thermostat_1_nativezone", name: "Thermostat", type: "climate" },
-        { id: "sensor.thermostat_1_nativezone_temperature", name: "Inside Temp", type: "sensor" },
-        { id: "sensor.thermostat_1_nativezone_zone_setpoint_status", name: "Mode", type: "sensor" },
-      ]},
-      attic: { name: "Attic", entities: [
-        { id: "switch.water_heater_recirculating_pump_switch", name: "Recirc Pump", type: "switch" },
-      ]},
-    }
-  }
-};
+// --- Config persistence (localStorage) ---
+const CONFIG_KEY = 'hubitat-dashboard-config';
 
-// Home room from URL param
-const params = new URLSearchParams(location.search);
-const homeRoom = params.get('room') || 'living_room';
-
-function findFloorForRoom(roomId) {
-  if (!roomId) return '1st_floor';
-  for (const [floorId, floor] of Object.entries(data)) {
-    if (floor.rooms[roomId]) return floorId;
-  }
-  return '1st_floor';
+function loadConfig() {
+  const raw = localStorage.getItem(CONFIG_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
 }
 
-const homeFloor = findFloorForRoom(homeRoom);
-let activeFloor = homeFloor;
-let activeRooms = { [homeFloor]: homeRoom };
+function saveConfig(config) {
+  if (!config) return;
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+function getDefaultConfig() {
+  return {
+    version: 1,
+    hub: { url: '', appId: '', token: '' },
+    floors: {},
+    homeRoom: '',
+    floorNames: {}
+  };
+}
+
+// Build the `data` object from config.floors (same shape the rest of the dashboard expects)
+function buildDataFromConfig(config) {
+  if (!config || !config.floors) return {};
+  return config.floors;
+}
+
+// --- Hubitat bulk fetch (delegates to HubitatAPI) ---
+async function fetchStates() {
+  if (!HubitatAPI.hubUrl) return;
+  await HubitatAPI.fetchStates(data);
+}
+
+// --- Navigation state ---
+let dashConfig = null;
+let homeRoom = '';
+let homeFloor = '';
+let activeFloor = '';
+let activeRooms = {};
+
+// Home room from URL param or config
+const params = new URLSearchParams(location.search);
+
+function findFloorForRoom(roomId) {
+  if (!roomId || !data) return Object.keys(data)[0] || '';
+  for (const [floorId, floor] of Object.entries(data)) {
+    if (floor.rooms && floor.rooms[roomId]) return floorId;
+  }
+  return Object.keys(data)[0] || '';
+}
 
 function goHome() {
-  if (!data[homeFloor]) return;
+  if (!homeFloor || !data[homeFloor]) return;
   activeFloor = homeFloor;
   activeRooms[homeFloor] = homeRoom;
   render();
@@ -221,241 +93,16 @@ function selectFloor(id) {
   const grid = document.getElementById('tileGrid');
   if (!grid) return;
   grid.classList.add('fading');
-  setTimeout(() => { activeFloor = id; render(); grid.classList.remove('fading'); }, 200);
+  setTimeout(() => { activeFloor = id; render(); grid.classList.remove('fading'); }, FADE_MS);
 }
+
 function selectRoom(id) {
   if (id === activeRooms[activeFloor]) return;
   if (!data[activeFloor] || !data[activeFloor].rooms[id]) return;
   const grid = document.getElementById('tileGrid');
   if (!grid) return;
   grid.classList.add('fading');
-  setTimeout(() => { activeRooms[activeFloor] = id; render(); grid.classList.remove('fading'); }, 200);
-}
-
-function collectEntityIds(e, ids) {
-  if (!e || !e.id) return;
-  ids.push(e.id);
-  if (e.id2) ids.push(e.id2);
-  if (e.idBat) ids.push(e.idBat);
-  if (e.idStatus) ids.push(e.idStatus);
-  if (!e.groupMembers) return;
-  for (let gi = 0; gi < e.groupMembers.length; gi++) {
-    ids.push(e.groupMembers[gi].id);
-  }
-}
-
-function allEntityIds() {
-  if (!data) return [];
-  const ids = [];
-  const floors = Object.values(data);
-  for (let fi = 0; fi < floors.length; fi++) {
-    const rooms = Object.values(floors[fi].rooms);
-    for (let ri = 0; ri < rooms.length; ri++) {
-      const entities = rooms[ri].entities;
-      for (let ei = 0; ei < entities.length; ei++) {
-        collectEntityIds(entities[ei], ids);
-      }
-    }
-  }
-  return ids;
-}
-
-function applyBrightness(s, id) {
-  if (!s || !id) return;
-  if (s.attributes && s.attributes.brightness !== undefined && s.attributes.brightness !== null) {
-    stateCache[id + '_brightness'] = s.attributes.brightness;
-  } else if (id.startsWith('light.') && s.state === 'off') {
-    stateCache[id + '_brightness'] = 0;
-  }
-}
-
-function applyPercentage(s, id) {
-  if (!s || !id) return;
-  if (isDimLocked(id)) return;
-  if (s.attributes && s.attributes.percentage !== undefined) {
-    stateCache[id + '_percentage'] = s.attributes.percentage;
-  } else if (id.startsWith('fan.') && s.state === 'off') {
-    stateCache[id + '_percentage'] = 0;
-  }
-}
-
-function applyState(s) {
-  if (!s || !s.entity_id) return;
-  const id = s.entity_id;
-  if (!isDimLocked(id)) {
-    stateCache[id] = s.state;
-  }
-  if (!isDimLocked(id)) {
-    const hasAnim = typeof dimAnimations !== 'undefined' && dimAnimations[id];
-    if (!hasAnim) applyBrightness(s, id);
-    applyPercentage(s, id);
-  }
-  const colorModes = (s.attributes && s.attributes.supported_color_modes) || [];
-  if (colorModes.length > 0) {
-    stateCache[id + '_dimmable'] = colorModes.some(m => m !== 'onoff');
-  }
-  if (s.attributes && s.attributes.transition !== undefined) {
-    stateCache[id + '_transition'] = s.attributes.transition;
-  }
-  if (id.startsWith('media_player.')) {
-    stateCache[id + '_picture'] = s.attributes.entity_picture || '';
-    stateCache[id + '_title'] = s.attributes.media_title || '';
-    stateCache[id + '_artist'] = s.attributes.media_artist || '';
-    stateCache[id + '_duration'] = s.attributes.media_duration || 0;
-    stateCache[id + '_position'] = s.attributes.media_position || 0;
-    stateCache[id + '_position_at'] = s.attributes.media_position_updated_at || '';
-  }
-  if (!isDimLocked(id)) {
-    if (s.attributes && s.attributes.volume_level !== undefined) {
-      stateCache[id + '_volume'] = s.attributes.volume_level;
-    }
-  }
-}
-
-// Initial bulk fetch (once on load, then WebSocket takes over)
-async function fetchStates() {
-  if (!haToken) return;
-  try {
-    const resp = await fetch(HA_URL + '/api/states', {
-      headers: { 'Authorization': 'Bearer ' + haToken }
-    });
-    if (!resp.ok) return;
-    const states = await resp.json();
-    if (!states || !Array.isArray(states)) return;
-    const needed = new Set(allEntityIds());
-    states.forEach(s => {
-      if (needed.has(s.entity_id)) applyState(s);
-    });
-    stateCache._live = true;
-    render();
-  } catch (e) {
-    stateCache._live = false;
-  }
-}
-
-// WebSocket for instant state updates
-let ws = null;
-let wsId = 1;
-let wsReconnectTimer = null;
-
-function handleTurnOff(id, oldBri) {
-  if (!id) return;
-  if (dimAnimations[id]) return;
-  const transition = stateCache[id + '_transition'];
-  const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
-  animateBrightness(id, oldBri, 0, ms, 'off');
-}
-
-function handleTurnOn(id, newS, newBri) {
-  if (!id || !newS) return;
-  const targetBri = newBri || 255;
-  if (dimAnimations[id]) {
-    const a = dimAnimations[id];
-    const elapsed = performance.now() - a.startTime;
-    const p = Math.min(1, elapsed / a.duration);
-    const currentVal = Math.round(a.from + (a.to - a.from) * p);
-    a.from = currentVal;
-    a.to = targetBri;
-    a.startTime = performance.now();
-    a.duration = a.duration - elapsed;
-    if (a.duration < 200) a.duration = 200;
-  } else {
-    applyState(newS);
-    stateCache[id + '_brightness'] = 0;
-    render();
-    const transition = stateCache[id + '_transition'];
-    const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
-    animateBrightness(id, 0, targetBri, ms);
-  }
-  if (dimAnimations[id] && dimAnimations[id].from > 0) applyState(newS);
-}
-
-function handleBriChange(id, oldBri, newBri) {
-  if (!id) return;
-  if (dimAnimations[id]) {
-    const a = dimAnimations[id];
-    const elapsed = performance.now() - a.startTime;
-    const p = Math.min(1, elapsed / a.duration);
-    const currentVal = Math.round(a.from + (a.to - a.from) * p);
-    a.from = currentVal;
-    a.to = newBri;
-    a.startTime = performance.now();
-    a.duration = Math.max(200, a.duration - elapsed);
-    return;
-  }
-  const currentBri = stateCache[id + '_brightness'] || oldBri;
-  const diff = Math.abs(newBri - currentBri);
-  const ms = Math.max(300, Math.min(2000, diff * 8));
-  animateBrightness(id, currentBri, newBri, ms);
-}
-
-function handleWsMessage(evt, needed) {
-  if (!evt || !evt.data) return;
-  if (!needed || !ws) return;
-  const msg = JSON.parse(evt.data);
-  if (!msg || !msg.type) return;
-
-  if (msg.type === 'auth_required') {
-    ws.send(JSON.stringify({ type: 'auth', access_token: haToken }));
-    return;
-  }
-  if (msg.type === 'auth_ok') {
-    stateCache._live = true;
-    render();
-    ws.send(JSON.stringify({ id: wsId++, type: 'subscribe_events', event_type: 'state_changed' }));
-    return;
-  }
-  if (msg.type === 'auth_invalid') {
-    stateCache._live = false;
-    render();
-    return;
-  }
-  if (msg.type !== 'event' || !msg.event || msg.event.event_type !== 'state_changed') return;
-  handleStateChange(msg.event.data, needed);
-}
-
-function handleStateChange(d, needed) {
-  if (!d || !d.new_state || !needed.has(d.entity_id)) return;
-  const id = d.entity_id;
-  const oldS = d.old_state;
-  const newS = d.new_state;
-
-  const newModes = newS.attributes && newS.attributes.supported_color_modes;
-  const isDimmable = (newModes && newModes.some(m => m !== 'onoff')) || stateCache[id + '_dimmable'];
-
-  if (!isDimmable || !id.startsWith('light.') || isDimLocked(id)) {
-    applyState(newS);
-    render();
-    return;
-  }
-
-  const oldBri = (oldS && oldS.attributes && oldS.attributes.brightness) || (oldS && oldS.state === 'on' ? 255 : 0);
-  const newBri = (newS.attributes && newS.attributes.brightness) || (newS.state === 'on' ? 255 : 0);
-  const wasOn = oldS && (oldS.state === 'on');
-  const nowOn = newS.state === 'on';
-
-  if (wasOn && !nowOn) { handleTurnOff(id, oldBri); }
-  else if (!wasOn && nowOn) { handleTurnOn(id, newS, newBri); }
-  else if (wasOn && nowOn && oldBri !== newBri) { handleBriChange(id, oldBri, newBri); }
-  else { applyState(newS); render(); }
-}
-
-function connectWebSocket() {
-  if (!haToken || !HA_URL) return;
-  const wsUrl = HA_URL.replace(/^http/, 'ws') + '/api/websocket';
-  if (!wsUrl) return;
-  ws = new WebSocket(wsUrl);
-  const needed = new Set(allEntityIds());
-
-  ws.onopen = () => {};
-  ws.onmessage = (evt) => handleWsMessage(evt, needed);
-  ws.onclose = () => {
-    stateCache._live = false;
-    render();
-    clearTimeout(wsReconnectTimer);
-    wsReconnectTimer = setTimeout(connectWebSocket, 5000);
-  };
-  ws.onerror = () => { ws.close(); };
+  setTimeout(() => { activeRooms[activeFloor] = id; render(); grid.classList.remove('fading'); }, FADE_MS);
 }
 
 let _lastFloor = null, _lastRoom = null, _lastLive = null;
@@ -466,10 +113,10 @@ function renderTabs(rooms, roomIds, activeRoom, isLive) {
   if (!tabsChanged) return;
   _lastFloor = activeFloor; _lastRoom = activeRoom; _lastLive = isLive;
 
-  const floorNames = { "2nd_floor": "2nd", "1st_floor": "1st", outside: "Out", home: "Home" };
+  const cfgFloorNames = (dashConfig && dashConfig.floorNames) || {};
   document.getElementById('floorTabs').innerHTML = Object.entries(data).map(([id, floor]) =>
     `<button class="floor-tab ${id === activeFloor ? 'active' : ''}" onclick="selectFloor('${id}')">
-      ${floorNames[id] || floor.name}
+      ${cfgFloorNames[id] || floor.name}
     </button>`
   ).join('');
 
@@ -480,6 +127,30 @@ function renderTabs(rooms, roomIds, activeRoom, isLive) {
   document.getElementById('roomBar').innerHTML = roomIds.map(id =>
     `<button class="room-tab ${id === activeRoom ? 'active' : ''}" onclick="selectRoom('${id}')">${rooms[id].name}</button>`
   ).join('');
+}
+
+// Position media tiles from bottom-right, compute spacers, and build positioned HTML
+function positionMediaTiles(media, nonMedia, cols, rows) {
+  const mediaPositions = [];
+  let mCol = cols;
+  let mRow = rows;
+  for (let i = media.length - 1; i >= 0; i--) {
+    if (mCol - 2 < 0) { mRow--; mCol = cols; }
+    mCol -= 2;
+    mediaPositions[i] = { row: mRow, col: mCol + 1 }; /* 1-indexed for CSS */
+  }
+
+  const totalCells = cols * rows;
+  const spacerCount = Math.max(0, totalCells - nonMedia.length - media.length * 2);
+  const spacerHtml = Array(spacerCount).fill('<div class="tile-spacer"></div>').join('');
+
+  let html = spacerHtml;
+  for (let i = 0; i < media.length; i++) {
+    const pos = mediaPositions[i];
+    const tile = renderTile(media[i]);
+    html += tile.replace('<div class="tile ', `<div style="grid-row:${pos.row};grid-column:${pos.col}/span 2" class="tile `);
+  }
+  return html;
 }
 
 function renderGrid(rooms, activeRoom) {
@@ -496,29 +167,29 @@ function renderGrid(rooms, activeRoom) {
 
   const entities = [...room.entities].sort((a, b) => tilePriority(a) - tilePriority(b));
   const nonMedia = entities.filter(e => e.type !== 'media');
-  const media = entities.filter(e => e.type === 'media');
+  const media = entities.filter(e => e.type === 'media').sort((a, b) => tilePriority(a) - tilePriority(b));
   const cellCount = nonMedia.length + media.length * 2;
   const rect = grid.getBoundingClientRect();
-  const { cols, rows } = calcGrid(cellCount, rect.width - 24, rect.height - 24);
+  const { cols } = calcGrid(cellCount, rect.width - 24, rect.height - 24);
+
+  /* ── Calculate actual rows accounting for span-2 wrapping ── */
+  let col = 0;
+  let rows = 1;
+  for (let i = 0; i < nonMedia.length; i++) {
+    if (col >= cols) { col = 0; rows++; }
+    col++;
+  }
+  for (let i = 0; i < media.length; i++) {
+    if (col + 2 > cols) { col = 0; rows++; }
+    col += 2;
+  }
 
   grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
   grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
 
-  const totalCells = cols * rows;
-  const spacerCount = Math.max(0, totalCells - nonMedia.length - media.length * 2);
-  const spacerHtml = Array(spacerCount).fill('<div class="tile-spacer"></div>').join('');
-
-  const orderedEntities = [...nonMedia, ...media];
-  let spacerInserted = false;
-
-  grid.innerHTML = orderedEntities.map((e, i) => {
-    let prefix = '';
-    if (!spacerInserted && e.type === 'media') {
-      prefix = spacerHtml;
-      spacerInserted = true;
-    }
-    return prefix + renderTile(e);
-  }).join('');
+  let html = nonMedia.map(e => renderTile(e)).join('');
+  html += positionMediaTiles(media, nonMedia, cols, rows);
+  grid.innerHTML = html;
 }
 
 function render() {
@@ -536,16 +207,51 @@ function render() {
   renderGrid(rooms, activeRoom);
 }
 
-window.addEventListener('resize', () => render());
+let _resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(render, RESIZE_DEBOUNCE_MS);
+});
 
 async function init() {
-  if (!HA_URL) return;
-  haToken = new URLSearchParams(location.search).get('token') || haToken;
+  // Load config from localStorage (or URL params for hub connection)
+  dashConfig = loadConfig();
+
+  // Allow URL params to override hub connection (for easy setup)
+  const urlHub = params.get('hub');
+  const urlAppId = params.get('appId');
+  const urlToken = params.get('token');
+  if (urlHub && urlAppId && urlToken) {
+    if (!dashConfig) dashConfig = getDefaultConfig();
+    dashConfig.hub = { url: urlHub, appId: urlAppId, token: urlToken };
+    saveConfig(dashConfig);
+  }
+
+  if (!dashConfig || !dashConfig.hub || !dashConfig.hub.url) {
+    // No config yet — show setup prompt
+    document.getElementById('tileGrid').innerHTML =
+      '<div class="empty-msg">No hub configured. Open settings (gear icon) to connect your Hubitat hub.</div>';
+    return;
+  }
+
+  // Build data from config
+  data = buildDataFromConfig(dashConfig);
+
+  // Set up navigation
+  homeRoom = params.get('room') || dashConfig.homeRoom || Object.keys(Object.values(data)[0]?.rooms || {})[0] || '';
+  homeFloor = findFloorForRoom(homeRoom);
+  activeFloor = homeFloor;
+  activeRooms = { [homeFloor]: homeRoom };
+
+  // Initialize Hubitat API
+  HubitatAPI.init(dashConfig.hub.url, dashConfig.hub.appId, dashConfig.hub.token, data);
+
   render();
   await fetchStates();
-  connectWebSocket();
+  HubitatAPI.connectEventSocket();
 }
 </script>
+<script src="hubitat-api.js"></script>
 <script src="tile-engine.js"></script>
 <script src="tiles/light.js"></script>
 <script src="tiles/switch.js"></script>
@@ -558,6 +264,7 @@ async function init() {
 <script src="tiles/cover.js"></script>
 <script src="tiles/door.js"></script>
 <script src="tiles/camera.js"></script>
+<script src="config-ui.js"></script>
 <script>
 // Initialize tile engine (wraps render with autoSizeNames, starts animations)
 initTileEngine();

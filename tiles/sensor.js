@@ -1,0 +1,38 @@
+TileEngine.register('sensor', {
+  icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>',
+
+  formatState(entity) {
+    const s = stateCache[entity.id] || 'unknown';
+    if (s === 'unavailable') return 'No Response';
+    if (entity.id.includes('temperature')) return parseFloat(s) ? Math.round(parseFloat(s)) + '°' : s;
+    if (entity.id.includes('humidity')) return parseFloat(s) ? Math.round(parseFloat(s)) + '%' : s;
+    if (entity.id.includes('battery') || entity.id.includes('load') || entity.id.includes('charge'))
+      return parseFloat(s) ? Math.round(parseFloat(s)) + '%' : s;
+    if (entity.id.includes('illuminance')) return s + ' lx';
+    return s;
+  },
+
+  isOn() { return false; },
+  isSensor: true,
+  isAlert() { return false; },
+  priority() { return 90; },
+
+  render(entity) {
+    const T = TileEngine;
+    const cls = T.baseClass(entity);
+    const offline = T.offlineHtml(entity);
+    const ic = T.iconColor(entity);
+    const state = this.formatState(entity);
+
+    return `<div class="tile ${cls}">
+      ${offline}
+      <div class="tile-icon-circle" style="color:${ic}">${this.icon}</div>
+      <div class="tile-bottom">
+        <div class="tile-value">${state}</div>
+        <div class="tile-name">${entity.name}</div>
+      </div>
+    </div>`;
+  },
+
+  css: ''
+});

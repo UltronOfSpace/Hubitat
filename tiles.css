@@ -1,0 +1,290 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  background: #1c1c1e; color: #fff; display: flex; height: 100vh; overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Left sidebar */
+.sidebar {
+  width: 44px; background: #1c1c1e;
+  display: flex; flex-direction: column;
+  z-index: 10;
+  box-shadow: none;
+}
+
+/* Home button - top-left corner */
+.home-btn {
+  width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  background: #1c1c1e;
+  border: none; cursor: pointer;
+  font-size: 22px; transition: all 0.15s;
+  position: relative;
+}
+.home-btn.live { background: linear-gradient(145deg, #2a6e3f 0%, #1a5c2e 100%); }
+.home-btn.offline { background: linear-gradient(145deg, #6e2a2a 0%, #5c1a1a 100%); }
+.home-btn:hover { background: linear-gradient(180deg, #444446 0%, #3a3a3c 100%); }
+.home-btn:active { transform: scale(0.92); box-shadow: none; }
+
+/* Floor tabs */
+.floor-tabs { flex: 1; display: flex; flex-direction: column; padding: 0; gap: 0; }
+.floor-tab {
+  flex: 1; writing-mode: vertical-rl; text-orientation: mixed;
+  padding: 0 2px; cursor: pointer; text-align: center;
+  font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+  border: none; background: transparent; color: rgba(255,255,255,0.3);
+  border-left: 2px solid transparent; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  overflow: hidden; min-height: 0;
+}
+.floor-tab:hover { color: rgba(255,255,255,0.6); background: linear-gradient(90deg, rgba(255,255,255,0.04) 0%, transparent 100%); }
+.floor-tab.active {
+  color: #fff; border-left: none;
+  background: linear-gradient(90deg, rgba(10,132,255,0.2) 0%, rgba(10,132,255,0.08) 40%, #000 100%);
+  text-shadow: 0 0 10px rgba(10,132,255,0.5), 0 1px 2px rgba(0,0,0,0.6);
+  box-shadow:
+    0 -3px 6px rgba(0,0,0,0.4),
+    0 3px 6px rgba(0,0,0,0.4),
+    4px 0 0 #000;
+  position: relative; z-index: 11;
+  margin-right: -2px; padding-right: 8px;
+  border-radius: 14px 0 0 14px;
+}
+
+/* Main content */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Room tabs */
+.room-bar {
+  display: flex; align-items: center;
+  background: #1c1c1e;
+  padding: 0; min-height: 44px; gap: 0; position: relative;
+  box-shadow: none;
+  z-index: 5;
+}
+.room-tab {
+  flex: 1; padding: 6px 2px; cursor: pointer; font-weight: 600;
+  border: none; background: transparent; color: rgba(255,255,255,0.35);
+  border-bottom: 2px solid transparent; transition: all 0.15s;
+  text-align: center; letter-spacing: -0.1px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  overflow: hidden;
+  min-width: 0; line-height: 1.2;
+}
+.room-tab:hover { color: rgba(255,255,255,0.7); }
+.room-tab.active {
+  color: #fff; border-bottom: none;
+  text-shadow: 0 0 10px rgba(10,132,255,0.5), 0 1px 2px rgba(0,0,0,0.6);
+  background: linear-gradient(180deg, rgba(10,132,255,0.15) 0%, rgba(10,132,255,0.06) 50%, #000 100%);
+  box-shadow:
+    -3px 0 6px rgba(0,0,0,0.4),
+    3px 0 6px rgba(0,0,0,0.4),
+    0 4px 0 #000;
+  border-radius: 14px 14px 0 0;
+  position: relative; z-index: 6;
+  margin-bottom: -2px; padding-bottom: 12px;
+}
+.room-bar .status { display: none; }
+
+/* Tile grid */
+.tile-grid {
+  flex: 1; display: grid; padding: 14px; gap: 12px;
+  overflow: hidden; background: #000;
+  transition: opacity 0.2s ease;
+}
+.tile-grid.fading { opacity: 0; }
+
+.tile-spacer { visibility: hidden; }
+
+/* HomeKit-style tile — base */
+.tile {
+  background: linear-gradient(145deg, #2e2e30 0%, #232325 25%, #1c1c1e 60%, #131315 100%);
+  border-radius: 16px;
+  display: flex; flex-direction: column;
+  padding: 8%;
+  transition: background 1s ease, transform 0.1s, box-shadow 1s ease;
+  overflow: visible; min-width: 0; min-height: 0;
+  position: relative; cursor: pointer;
+  box-shadow:
+    4px 4px 10px rgba(0,0,0,0.6),
+    -2px -2px 6px rgba(50,50,52,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.1),
+    inset 0 -1px 0 rgba(0,0,0,0.2);
+  border-top: 1px solid rgba(255,255,255,0.08);
+  border-left: 1px solid rgba(255,255,255,0.05);
+}
+.tile:active:not(:has(.tile-slider-wrap:active, .tile-fan-speeds:active, .tile-media-controls:active, .tile-progress-wrap:active)) {
+  transform: scale(0.97) translateY(1px);
+  box-shadow:
+    1px 1px 3px rgba(0,0,0,0.5),
+    inset 0 2px 4px rgba(0,0,0,0.15);
+  border-top-color: rgba(255,255,255,0.04);
+}
+
+/* Icon circle — off state */
+.tile .tile-icon-circle {
+  --icon-min: 28px; --icon-max: 42px;
+  width: clamp(var(--icon-min), 22%, var(--icon-max)); aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(145deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.03) 100%);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: auto;
+  transition: background 0.2s, box-shadow 0.2s;
+  box-shadow:
+    3px 3px 6px rgba(0,0,0,0.5),
+    -2px -2px 4px rgba(60,60,62,0.25),
+    inset 0 1px 1px rgba(255,255,255,0.15);
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.tile .tile-icon-circle svg {
+  width: 45%; height: 45%;
+}
+
+/* Large watermark icon */
+.tile-icon-bg {
+  position: absolute; opacity: 0.04;
+  pointer-events: none; z-index: 0;
+  display: none;
+}
+.tile-icon-bg svg { width: 100%; height: 100%; }
+.tile.state-on .tile-icon-bg { opacity: 0.06; }
+
+/* Tile bottom / name / state */
+.tile-bottom { margin-top: auto; overflow: visible; }
+.tile.has-slider .tile-bottom {
+  max-width: calc(100% - clamp(24px, 3vw, 40px) - 8%);
+  overflow: visible;
+}
+.tile-name {
+  font-weight: 600; color: rgba(255,255,255,0.85);
+  line-height: 1.25;
+}
+.tile-state {
+  font-weight: 500; margin-top: 2px;
+  color: rgba(255,255,255,0.35);
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+
+/* Shared bottom layout (used by standard tile template) */
+.tile-bottom-media {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%;
+}
+.tile-media-left { flex: 1; min-width: 0; overflow: hidden; }
+
+/* On state — bright tile like HomeKit */
+.tile.state-on {
+  background: linear-gradient(145deg, #ffffff 0%, #f5f5f5 30%, #ebebeb 70%, #e0e0e0 100%);
+  box-shadow:
+    4px 4px 10px rgba(0,0,0,0.35),
+    -2px -2px 6px rgba(255,255,255,0.08),
+    inset 0 1px 0 rgba(255,255,255,1);
+  border-top: 1px solid rgba(255,255,255,0.9);
+  border-left: 1px solid rgba(255,255,255,0.6);
+}
+.tile.state-on .tile-icon-circle {
+  background: linear-gradient(145deg, #ffe680 0%, #ffd60a 40%, #d4ad00 100%);
+  box-shadow:
+    3px 3px 6px rgba(0,0,0,0.2),
+    -2px -2px 4px rgba(255,240,150,0.3),
+    inset 0 1px 1px rgba(255,255,255,0.6);
+  border-top: 1px solid rgba(255,255,255,0.5);
+}
+.tile.state-on .tile-name { color: #1c1c1e; }
+.tile.state-on .tile-state { color: rgba(0,0,0,0.4); }
+
+/* Sensor/value state */
+.tile.state-sensor {
+  background: #1c1c1e;
+}
+.tile.state-sensor .tile-icon-circle {
+  background: linear-gradient(145deg, rgba(10,132,255,0.25) 0%, rgba(10,132,255,0.1) 100%);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(100,180,255,0.15);
+}
+.tile.state-sensor .tile-value {
+  font-size: clamp(16px, 2vw, 32px); font-weight: 700; color: #fff;
+  letter-spacing: -0.5px; margin-top: 2px;
+}
+.tile.state-sensor .tile-name { color: rgba(255,255,255,0.5); font-weight: 500; }
+
+/* Alert state (door/motion open) */
+.tile.state-alert {
+  background: linear-gradient(145deg, #ffc150 0%, #ff9f0a 40%, #d98800 100%);
+  box-shadow:
+    4px 4px 10px rgba(0,0,0,0.4),
+    -2px -2px 6px rgba(255,180,60,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.35);
+  border-top: 1px solid rgba(255,255,255,0.3);
+  border-left: 1px solid rgba(255,255,255,0.15);
+}
+.tile.state-alert .tile-icon-circle {
+  background: linear-gradient(145deg, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.2) 100%);
+  box-shadow:
+    3px 3px 6px rgba(0,0,0,0.25),
+    -2px -2px 4px rgba(255,200,80,0.15),
+    inset 0 1px 1px rgba(255,255,255,0.15);
+}
+.tile.state-alert .tile-name { color: rgba(0,0,0,0.85); }
+.tile.state-alert .tile-state { color: rgba(0,0,0,0.5); }
+
+/* Unavailable / Offline */
+.tile-offline {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  border-radius: 15px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  z-index: 3; gap: 4px;
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+.tile-offline svg {
+  width: clamp(24px, 3vw, 36px); height: clamp(24px, 3vw, 36px);
+}
+.tile-offline span {
+  font-size: clamp(9px, 0.8vw, 12px); font-weight: 600;
+  color: #ff453a; text-transform: uppercase; letter-spacing: 1px;
+  text-shadow: 0 0 8px rgba(255,69,58,0.5);
+}
+
+/* Brightness/volume slider — shared base */
+.tile.has-slider { position: relative; }
+.tile-slider-wrap {
+  position: absolute; right: 8%; top: 10%; bottom: 10%;
+  left: 55%;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 2;
+}
+.tile-slider-track {
+  position: relative;
+  width: 65%; max-width: 52px; height: 100%;
+  background: linear-gradient(145deg, #2e2e30 0%, #1c1c1e 50%, #131315 100%);
+  border-radius: 999px; overflow: hidden; cursor: pointer;
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,0.5),
+    inset 0 -1px 0 rgba(255,255,255,0.06),
+    2px 2px 6px rgba(0,0,0,0.4),
+    -1px -1px 3px rgba(50,50,52,0.2);
+  border: 1px solid rgba(255,255,255,0.04);
+}
+.tile-slider-fill {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.15) 100%);
+  border-radius: 999px;
+  pointer-events: none;
+}
+.tile.state-on .tile-slider-track {
+  background: linear-gradient(145deg, #f0f0f0 0%, #e0e0e0 50%, #d0d0d0 100%);
+  box-shadow:
+    inset 0 3px 6px rgba(0,0,0,0.12),
+    inset 0 -1px 0 rgba(255,255,255,0.8),
+    2px 2px 6px rgba(0,0,0,0.2),
+    -1px -1px 3px rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.tile.state-on .tile-slider-fill {
+  background: linear-gradient(180deg, #ffe680 0%, #ffd60a 40%, #e6c009 100%);
+  box-shadow: 0 0 12px rgba(255,214,10,0.3);
+}
+
+.empty-msg { color: rgba(255,255,255,0.2); font-size: 15px; text-align: center; align-self: center; justify-self: center; }

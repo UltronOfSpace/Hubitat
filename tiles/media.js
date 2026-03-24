@@ -3,31 +3,88 @@
 const mediaIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`;
 const speakerIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="6" r="1" fill="currentColor"/></svg>`;
 
-// Media press/hold logic
+// Media press/hold state -- shared intentionally across interactions.
+// Each new press clears the previous timer before starting a new one,
+// preventing corruption from overlapping interactions.
 let mediaTimer = null;
 let mediaHandled = false;
 
-// Group volume popup
-function openGroupVolumePopup(entityId) {
-  // Find the entity config to get groupMembers
-  let members = null;
-  Object.values(data).forEach(floor =>
-    Object.values(floor.rooms).forEach(room =>
-      room.entities.forEach(e => {
-        if (e.id === entityId && e.groupMembers) members = e.groupMembers;
-      })
-    )
-  );
-  if (!members || !members.length) return;
+// Module-scoped interval ID for the group volume popup live-update.
+// Cleared and reset each time a popup opens, and on popup removal.
+let gvpIntervalId = null;
 
-  // Remove existing popup
-  const old = document.getElementById('group-volume-popup');
-  if (old) old.remove();
+// Finds an entity config object by ID across all floors/rooms.
+// Returns the entity object or null. Uses early return to exit once found.
+function findEntityInData(searchData, entityId) {
+  if (!searchData || !entityId) return null;
+  const floors = Object.values(searchData);
+  for (let fi = 0; fi < floors.length; fi++) {
+    const floor = floors[fi];
+    if (!floor.rooms) continue;
+    const rooms = Object.values(floor.rooms);
+    for (let ri = 0; ri < rooms.length; ri++) {
+      const room = rooms[ri];
+      if (!room.entities) continue;
+      for (let ei = 0; ei < room.entities.length; ei++) {
+        if (room.entities[ei].id === entityId) return room.entities[ei];
+      }
+    }
+  }
+  return null;
+}
+
+// Builds a single group-volume slider column for a speaker member.
+function buildGroupSlider(m) {
+  if (!m || !m.id) return null;
+  const col = document.createElement('div');
+  col.className = 'gvp-slider-col';
+
+  const label = document.createElement('div');
+  label.className = 'gvp-label';
+  label.textContent = m.name;
+
+  const trackWrap = document.createElement('div');
+  trackWrap.className = 'gvp-track-wrap';
+
+  const track = document.createElement('div');
+  track.className = 'tile-slider-track';
+  track.dataset.entity = m.id;
+  track.dataset.sliderType = 'volume';
+  track.onmousedown = (e) => startDim(e);
+  track.ontouchstart = (e) => startDim(e);
+
+  const fill = document.createElement('div');
+  fill.className = 'tile-slider-fill';
+  const vol = stateCache[m.id + '_volume'] || 0;
+  fill.style.height = Math.round(vol * 100) + '%';
+
+  const pctLabel = document.createElement('div');
+  pctLabel.className = 'gvp-pct';
+  pctLabel.textContent = Math.round(vol * 100) + '%';
+  pctLabel.dataset.entity = m.id;
+
+  track.appendChild(fill);
+  trackWrap.appendChild(track);
+  col.appendChild(label);
+  col.appendChild(trackWrap);
+  col.appendChild(pctLabel);
+  return col;
+}
+
+// Assembles the popup DOM container with title and slider columns.
+function buildPopupContainer(entityId, members) {
+  if (!entityId || !members) return null;
 
   const overlay = document.createElement('div');
   overlay.id = 'group-volume-popup';
   overlay.className = 'gvp-overlay';
-  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+  overlay.onclick = (e) => {
+    if (e.target === overlay) {
+      clearInterval(gvpIntervalId);
+      gvpIntervalId = null;
+      overlay.remove();
+    }
+  };
 
   const card = document.createElement('div');
   card.className = 'gvp-card';
@@ -41,90 +98,83 @@ function openGroupVolumePopup(entityId) {
   const sliders = document.createElement('div');
   sliders.className = 'gvp-sliders';
 
-  members.forEach(m => {
-    const col = document.createElement('div');
-    col.className = 'gvp-slider-col';
-
-    const label = document.createElement('div');
-    label.className = 'gvp-label';
-    label.textContent = m.name;
-
-    const trackWrap = document.createElement('div');
-    trackWrap.className = 'gvp-track-wrap';
-
-    const track = document.createElement('div');
-    track.className = 'tile-slider-track';
-    track.dataset.entity = m.id;
-    track.dataset.sliderType = 'volume';
-    track.onmousedown = (e) => startDim(e);
-    track.ontouchstart = (e) => startDim(e);
-
-    const fill = document.createElement('div');
-    fill.className = 'tile-slider-fill';
-    const vol = stateCache[m.id + '_volume'] || 0;
-    fill.style.height = Math.round(vol * 100) + '%';
-
-    const pctLabel = document.createElement('div');
-    pctLabel.className = 'gvp-pct';
-    pctLabel.textContent = Math.round(vol * 100) + '%';
-    pctLabel.dataset.entity = m.id;
-
-    track.appendChild(fill);
-    trackWrap.appendChild(track);
-    col.appendChild(label);
-    col.appendChild(trackWrap);
-    col.appendChild(pctLabel);
-    sliders.appendChild(col);
-  });
+  for (let i = 0; i < members.length; i++) {
+    const col = buildGroupSlider(members[i]);
+    if (col) sliders.appendChild(col);
+  }
 
   card.appendChild(sliders);
   overlay.appendChild(card);
+  return overlay;
+}
+
+// Group volume popup
+function openGroupVolumePopup(entityId) {
+  if (!entityId) return;
+
+  const entity = findEntityInData(data, entityId);
+  const members = (entity && entity.groupMembers) ? entity.groupMembers : null;
+  if (!members || !members.length) return;
+
+  // Clear any existing live-update interval
+  if (gvpIntervalId !== null) {
+    clearInterval(gvpIntervalId);
+    gvpIntervalId = null;
+  }
+
+  // Remove existing popup
+  const old = document.getElementById('group-volume-popup');
+  if (old) old.remove();
+
+  const overlay = buildPopupContainer(entityId, members);
+  if (!overlay) return;
   document.body.appendChild(overlay);
 
   // Live-update fills and pct labels
-  const updateInterval = setInterval(() => {
-    if (!document.getElementById('group-volume-popup')) { clearInterval(updateInterval); return; }
-    members.forEach(m => {
+  gvpIntervalId = setInterval(() => {
+    if (!document.getElementById('group-volume-popup')) {
+      clearInterval(gvpIntervalId);
+      gvpIntervalId = null;
+      return;
+    }
+    for (let i = 0; i < members.length; i++) {
+      const m = members[i];
       const vol = stateCache[m.id + '_volume'] || 0;
       const pct = Math.round(vol * 100);
-      const t = overlay.querySelector(`.tile-slider-track[data-entity="${m.id}"] .tile-slider-fill`);
+      const t = overlay.querySelector('.tile-slider-track[data-entity="' + m.id + '"] .tile-slider-fill');
       if (t) t.style.height = pct + '%';
-      const p = overlay.querySelector(`.gvp-pct[data-entity="${m.id}"]`);
+      const p = overlay.querySelector('.gvp-pct[data-entity="' + m.id + '"]');
       if (p) p.textContent = pct + '%';
-    });
+    }
   }, 200);
 }
 
 function mediaContext(entityId, e) {
+  if (!entityId || !e) return;
   e.preventDefault();
   // Check if this is a group with members
-  let hasMembers = false;
-  Object.values(data).forEach(floor =>
-    Object.values(floor.rooms).forEach(room =>
-      room.entities.forEach(ent => {
-        if (ent.id === entityId && ent.groupMembers && ent.groupMembers.length) hasMembers = true;
-      })
-    )
-  );
+  const entity = findEntityInData(data, entityId);
+  const hasMembers = entity && entity.groupMembers && entity.groupMembers.length > 0;
   const isOn = stateCache[entityId] === 'playing' || stateCache[entityId] === 'paused' || stateCache[entityId] === 'idle';
   if (hasMembers && isOn) openGroupVolumePopup(entityId);
 }
 
 function mediaDown(entityId, e) {
+  if (!entityId || !e) return;
   if (e.button && e.button !== 0) return;
   if (e.target.closest('.tile-slider-wrap') || e.target.closest('.tile-media-controls') || e.target.closest('.tile-progress-wrap') || e.target.closest('.media-ctrl-btn')) return;
   e.preventDefault();
   mediaHandled = false;
 
+  // Clear previous timer before starting new one
+  if (mediaTimer !== null) {
+    clearTimeout(mediaTimer);
+    mediaTimer = null;
+  }
+
   // Check if this is a group with members
-  let hasMembers = false;
-  Object.values(data).forEach(floor =>
-    Object.values(floor.rooms).forEach(room =>
-      room.entities.forEach(ent => {
-        if (ent.id === entityId && ent.groupMembers && ent.groupMembers.length) hasMembers = true;
-      })
-    )
-  );
+  const entity = findEntityInData(data, entityId);
+  const hasMembers = entity && entity.groupMembers && entity.groupMembers.length > 0;
   const isOn = stateCache[entityId] === 'playing' || stateCache[entityId] === 'paused' || stateCache[entityId] === 'idle';
 
   mediaTimer = setTimeout(() => {
@@ -141,6 +191,7 @@ function mediaDown(entityId, e) {
 }
 
 function mediaUp(entityId, e) {
+  if (!entityId || !e) return;
   if (e.target.closest('.tile-slider-wrap') || e.target.closest('.tile-media-controls') || e.target.closest('.tile-progress-wrap') || e.target.closest('.media-ctrl-btn')) return;
   clearTimeout(mediaTimer);
   if (mediaHandled) return;
@@ -158,6 +209,7 @@ function mediaUp(entityId, e) {
 }
 
 function mediaSkip(entityId, direction, e) {
+  if (!entityId || !e) return;
   e.stopPropagation();
   const service = direction === 'next' ? 'media_next_track' : 'media_previous_track';
   TileEngine.callService('media_player', service, { entity_id: entityId });
@@ -165,6 +217,7 @@ function mediaSkip(entityId, direction, e) {
 }
 
 function mediaSeek(entityId, e) {
+  if (!entityId || !e) return;
   e.stopPropagation();
   const track = e.currentTarget;
   const rect = track.getBoundingClientRect();
@@ -179,11 +232,13 @@ function mediaSeek(entityId, e) {
 
 TileEngine.register('media', {
   icon(entity) {
+    if (!entity) return speakerIcon;
     const n = entity.name.toLowerCase();
     return (n.includes('tv') || n.includes('chromecast') || n.includes('display')) ? mediaIcon : speakerIcon;
   },
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable') return 'No Response';
     if (s === 'playing') return '\u25b6 Playing';
@@ -194,6 +249,7 @@ TileEngine.register('media', {
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     const s = TileEngine.state(entity.id);
     return s === 'playing' || s === 'paused' || s === 'idle';
   },
@@ -203,6 +259,7 @@ TileEngine.register('media', {
   isAlert() { return false; },
 
   priority(entity) {
+    if (!entity) return 200;
     const n = entity.name.toLowerCase();
     if (n.includes('tv')) return 230;
     if (n.includes('chromecast') || n.includes('display')) return 220;
@@ -210,6 +267,7 @@ TileEngine.register('media', {
   },
 
   getMediaPosition(entityId) {
+    if (!entityId) return { pos: 0, dur: 0 };
     const pos = stateCache[entityId + '_position'] || 0;
     const at = stateCache[entityId + '_position_at'] || '';
     const dur = stateCache[entityId + '_duration'] || 0;
@@ -220,8 +278,7 @@ TileEngine.register('media', {
   },
 
   toggle(entityId) {
-    // Not used directly — mediaDown/mediaUp handles interaction
-    // But needed for toggleEntity dispatch
+    if (!entityId) return;
     const s = stateCache[entityId] || 'off';
     if (s === 'playing') { stateCache[entityId] = 'paused'; TileEngine.callService('media_player', 'media_pause', { entity_id: entityId }); }
     else if (s === 'paused') { stateCache[entityId] = 'playing'; TileEngine.callService('media_player', 'media_play', { entity_id: entityId }); }
@@ -230,27 +287,16 @@ TileEngine.register('media', {
     render();
   },
 
-  render(entity) {
-    const T = TileEngine;
-    const on = this.isOn(entity);
-    const state = this.formatState(entity);
-    const cls = T.baseClass(entity);
-    const offline = T.offlineHtml(entity);
-    const ic = T.iconColor(entity);
-    const n = entity.name.toLowerCase();
-    const icon = (n.includes('tv') || n.includes('chromecast') || n.includes('display')) ? mediaIcon : speakerIcon;
+  buildVolumeSlider(entity) {
+    if (!this.isOn(entity)) return { html: '', cls: '' };
+    const vol = stateCache[entity.id + '_volume'] || 0;
+    const vPct = Math.round(vol * 100);
+    const html = `<div class="tile-slider-wrap" onclick="event.stopPropagation()"><div class="tile-slider-track" data-entity="${entity.id}" data-slider-type="volume" onmousedown="startDim(event)" ontouchstart="startDim(event)"><div class="tile-slider-fill" style="height:${vPct}%"></div></div></div>`;
+    return { html, cls: ' has-slider' };
+  },
 
-    // Volume slider (only when on)
-    let sliderHtml = '', sliderCls = '';
-    if (on) {
-      const vol = stateCache[entity.id + '_volume'] || 0;
-      const vPct = Math.round(vol * 100);
-      sliderHtml = `<div class="tile-slider-wrap" onclick="event.stopPropagation()"><div class="tile-slider-track" data-entity="${entity.id}" data-slider-type="volume" onmousedown="startDim(event)" ontouchstart="startDim(event)"><div class="tile-slider-fill" style="height:${vPct}%"></div></div></div>`;
-      sliderCls = ' has-slider';
-    }
-
-    // Album art
-    let artHtml = '', artCls = '';
+  buildAlbumArt(entity) {
+    let artHtml = '', artCls = '', mediaInfoHtml = '';
     const pic = stateCache[entity.id + '_picture'] || '';
     const title = stateCache[entity.id + '_title'] || '';
     const artist = stateCache[entity.id + '_artist'] || '';
@@ -259,17 +305,17 @@ TileEngine.register('media', {
       artHtml = `<div class="tile-album-art"><img src="${imgUrl}" alt=""></div>`;
       artCls = ' has-art';
     }
-    let mediaInfoHtml = '';
     if (title) {
       mediaInfoHtml = `<div class="tile-media-info">${artist ? artist + ' \u2014 ' : ''}${title}</div>`;
     }
+    return { artHtml, artCls, mediaInfoHtml };
+  },
 
-    // Transport controls
+  buildTransportControls(entity) {
     let transportHtml = '', progressHtml = '';
     const ms = stateCache[entity.id] || 'off';
     const isPlaying = ms === 'playing' || ms === 'paused';
     const { pos, dur } = this.getMediaPosition(entity.id);
-
     if (isPlaying) {
       const prevSvg = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6z"/><path d="M18 18L9.5 12 18 6v12z"/></svg>`;
       const nextSvg = `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 6h2v12h-2z"/><path d="M6 18l8.5-6L6 6v12z"/></svg>`;
@@ -278,25 +324,41 @@ TileEngine.register('media', {
         <button class="media-ctrl-btn" onclick="mediaSkip('${entity.id}','next',event)">${nextSvg}</button>
       </div>`;
     }
-
     if (dur > 0) {
       const pct = Math.min(100, Math.round((pos / dur) * 100));
       progressHtml = `<div class="tile-progress-wrap" onclick="mediaSeek('${entity.id}',event)"><div class="tile-progress-track"><div class="tile-progress-fill" style="width:${pct}%"><div class="tile-progress-knob"></div></div></div></div>`;
     }
+    return { transportHtml, progressHtml };
+  },
 
-    return `<div class="tile ${cls}${sliderCls}${artCls} tile-wide" onmousedown="mediaDown('${entity.id}',event)" onmouseup="mediaUp('${entity.id}',event)" ontouchstart="mediaDown('${entity.id}',event)" ontouchend="mediaUp('${entity.id}',event)" oncontextmenu="mediaContext('${entity.id}',event)">
-      ${artHtml}${offline}${sliderHtml}
+  render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
+    const T = TileEngine;
+    const state = this.formatState(entity);
+    const cls = T.baseClass(entity);
+    const offline = T.offlineHtml(entity);
+    const ic = T.iconColor(entity);
+    const n = entity.name.toLowerCase();
+    const icon = (n.includes('tv') || n.includes('chromecast') || n.includes('display')) ? mediaIcon : speakerIcon;
+
+    const slider = this.buildVolumeSlider(entity);
+    const art = this.buildAlbumArt(entity);
+    const controls = this.buildTransportControls(entity);
+
+    return `<div class="tile ${cls}${slider.cls}${art.artCls} tile-wide" onmousedown="mediaDown('${entity.id}',event)" onmouseup="mediaUp('${entity.id}',event)" ontouchstart="mediaDown('${entity.id}',event)" ontouchend="mediaUp('${entity.id}',event)" oncontextmenu="mediaContext('${entity.id}',event)">
+      ${art.artHtml}${offline}${slider.html}
       <div class="tile-icon-bg">${icon}</div>
       <div class="tile-icon-circle" style="color:${ic}">${icon}</div>
       <div class="tile-bottom tile-bottom-media">
         <div class="tile-media-left">
           <div class="tile-name">${entity.name}</div>
           <div class="tile-state">${state}</div>
-          ${mediaInfoHtml}
+          ${art.mediaInfoHtml}
         </div>
-        ${transportHtml}
+        ${controls.transportHtml}
       </div>
-      ${progressHtml}
+      ${controls.progressHtml}
     </div>`;
   },
 

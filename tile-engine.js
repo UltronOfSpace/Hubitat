@@ -1,6 +1,42 @@
 // tile-engine.js — Core tile rendering engine with plugin registry
 // Expects globals from dashboard: HA_URL, haToken, stateCache, dimLocks, render(), fetchStates()
 
+
+// Shared helper: shrink font until each word fits within maxW
+function fitWordsToWidth(el, words, maxW, startSize, minSize) {
+  if (!el || !words || !maxW) return startSize;
+  let size = startSize;
+  const span = document.createElement('span');
+  span.style.cssText = `font-weight:600;white-space:nowrap;visibility:hidden;position:absolute;`;
+  document.body.appendChild(span);
+  let tries = 0, fits = false;
+  while (!fits && size > minSize && tries < 20) {
+    span.style.fontSize = size + 'px';
+    fits = true;
+    for (const w of words) { span.textContent = w; if (span.offsetWidth > maxW + 1) { fits = false; break; } }
+    if (!fits) { size -= 0.5; el.style.fontSize = size + 'px'; }
+    tries++;
+  }
+  span.remove();
+  return size;
+}
+
+// Shared helper: apply tile dim styling based on brightness percentage
+function applyDimStyle(tile, pct) {
+  if (!tile) return;
+  const o = pct;
+  if (o > 0) {
+    tile.style.background = `linear-gradient(145deg, rgba(255,255,255,${o}) 0%, rgba(245,245,245,${o}) 30%, rgba(235,235,235,${o}) 70%, rgba(224,224,224,${o}) 100%)`;
+    tile.style.borderTop = `1px solid rgba(255,255,255,${o*0.9})`;
+    tile.style.borderLeft = `1px solid rgba(255,255,255,${o*0.6})`;
+    tile.style.boxShadow = `4px 4px 10px rgba(0,0,0,0.35),-2px -2px 6px rgba(255,255,255,${o*0.08}),inset 0 1px 0 rgba(255,255,255,${o})`;
+  } else {
+    tile.style.background = '';
+    tile.style.borderTop = '';
+    tile.style.borderLeft = '';
+    tile.style.boxShadow = '';
+  }
+}
 const TileEngine = {
   // --- Defaults (single source of truth) ---
   defaults: {
@@ -14,6 +50,7 @@ const TileEngine = {
 
   // --- Plugin Registry ---
   register(type, def) {
+    if (!type || !def) return;
     this.registry[type] = def;
     if (def.css && !this._injectedCSS.has(type)) {
       const style = document.createElement('style');
@@ -28,33 +65,43 @@ const TileEngine = {
   },
 
   // --- State Accessors ---
-  state(id) { return stateCache[id] || 'unknown'; },
-  attr(id, suffix) { return stateCache[id + '_' + suffix]; },
-  setState(id, val) { stateCache[id] = val; },
-  setAttr(id, suffix, val) { stateCache[id + '_' + suffix] = val; },
-  lock(id) { dimLocks[id] = Date.now(); },
+  state(id) {
+    if (!id) return 'unknown';
+    return stateCache[id] || 'unknown';
+  },
+  attr(id, suffix) { if (!id || !suffix) return undefined; return stateCache[id + '_' + suffix]; },
+  setState(id, val) { if (!id) return; stateCache[id] = val; },
+  setAttr(id, suffix, val) { if (!id || !suffix) return; stateCache[id + '_' + suffix] = val; },
+  lock(id) { if (!id) return; dimLocks[id] = Date.now(); },
   isLocked(id) { return dimLocks[id] && (Date.now() - dimLocks[id] < this.defaults.dimLockMs); },
 
   // --- HA API ---
   async callService(domain, service, data) {
+    if (!domain || !service) return;
     try {
-      await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
+      const resp = await fetch(`${HA_URL}/api/services/${domain}/${service}`, {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + haToken, 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
       });
+      if (!resp.ok) return;
     } catch(e) { /* silent */ }
   },
 
   async getEntityState(entityId) {
-    const resp = await fetch(`${HA_URL}/api/states/${entityId}`, {
-      headers: { 'Authorization': 'Bearer ' + haToken }
-    });
-    return resp.json();
+    if (!entityId) return null;
+    try {
+      const resp = await fetch(`${HA_URL}/api/states/${entityId}`, {
+        headers: { 'Authorization': 'Bearer ' + haToken }
+      });
+      if (!resp.ok) return null;
+      return resp.json();
+    } catch(e) { return null; }
   },
 
   // --- Rendering Helpers ---
   baseClass(entity) {
+    if (!entity || !entity.id) return '';
     const s = stateCache[entity.id] || '';
     const unavail = s === 'unavailable';
     const def = this.registry[entity.type];
@@ -77,6 +124,7 @@ const TileEngine = {
   },
 
   iconColor(entity) {
+    if (!entity) return 'rgba(255,255,255,0.6)';
     const def = this.registry[entity.type];
     const on = def && def.isOn ? def.isOn(entity) : false;
     const sensor = def ? !!def.isSensor : false;
@@ -88,6 +136,7 @@ const TileEngine = {
 
   // Standard tile template — used by simple tile types
   renderStandard(entity, opts = {}) {
+    if (!entity) return '';
     const cls = this.baseClass(entity);
     const offline = this.offlineHtml(entity);
     const ic = opts.iconColor || this.iconColor(entity);
@@ -113,6 +162,7 @@ const TileEngine = {
 
   // --- Main Render Dispatch ---
   renderTile(entity) {
+    if (!entity || !entity.type) return '';
     const def = this.registry[entity.type];
     if (!def) {
       return `<div class="tile type-${entity.type}"><div class="tile-bottom">
@@ -123,6 +173,7 @@ const TileEngine = {
   },
 
   formatState(entity) {
+    if (!entity) return 'unknown';
     const def = this.registry[entity.type];
     if (def && def.formatState) return def.formatState(entity);
     const s = stateCache[entity.id] || 'unknown';
@@ -131,27 +182,32 @@ const TileEngine = {
   },
 
   isOn(entity) {
+    if (!entity) return false;
     const def = this.registry[entity.type];
     return def && def.isOn ? def.isOn(entity) : false;
   },
 
   isSensor(entity) {
+    if (!entity) return false;
     const def = this.registry[entity.type];
     return def ? !!def.isSensor : false;
   },
 
   isAlert(entity) {
+    if (!entity) return false;
     const def = this.registry[entity.type];
     return def && def.isAlert ? def.isAlert(entity) : false;
   },
 
   tilePriority(entity) {
+    if (!entity) return 200;
     const def = this.registry[entity.type];
     return def && def.priority ? def.priority(entity) : 200;
   },
 
   // --- Grid ---
   calcGrid(count, containerW, containerH) {
+    if (count < 0) count = 0;
     if (count === 0) return { cols: 1, rows: 1 };
     let bestCols = 1, bestSize = 0;
     for (let cols = 1; cols <= Math.min(count, 8); cols++) {
@@ -171,6 +227,8 @@ const TileEngine = {
   _volDebounce: null,
 
   setBrightness(entityId, value) {
+    if (!entityId) return;
+    value = Math.max(0, Math.min(255, value));
     stateCache[entityId + '_brightness'] = value;
     stateCache[entityId + '_percentage'] = Math.round((value / 255) * 100);
     if (value === 0) stateCache[entityId] = 'off';
@@ -193,6 +251,8 @@ const TileEngine = {
 
   _volDebounces: {},
   setVolume(entityId, value, sendNow) {
+    if (!entityId) return;
+    value = Math.max(0, Math.min(255, value));
     const vol = value / 255;
     stateCache[entityId + '_volume'] = vol;
     dimLocks[entityId] = Date.now();
@@ -204,115 +264,95 @@ const TileEngine = {
       clearTimeout(this._volDebounces[entityId]);
       this._volDebounces[entityId] = setTimeout(() => {
         this.callService('media_player', 'volume_set', { entity_id: entityId, volume_level: vol });
+        delete this._volDebounces[entityId];
       }, 300);
     }
   },
 
+  // Extracted: animate slider on click-without-drag
+  animateSliderClick(track, fill, entityId, isVolume, tile, currentPct, targetPct, duration) {
+    if (!track || !fill || !entityId) return;
+    if (typeof currentPct !== 'number' || typeof targetPct !== 'number') return;
+    if (duration <= 0) duration = 200;
+    TileEngine.sliderAnimating = true;
+    const steps = Math.max(10, Math.round(duration / 20));
+    let step = 0;
+    if (isVolume) {
+      const volSteps = 5;
+      for (let i = 1; i <= volSteps; i++) {
+        setTimeout(() => {
+          const t = i / volSteps;
+          const pct = currentPct + (targetPct - currentPct) * t;
+          TileEngine.setVolume(entityId, Math.round(pct * 255), true);
+        }, (duration / volSteps) * i);
+      }
+    }
+    function animateStep() {
+      step++;
+      const t = step / steps;
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      const pct = currentPct + (targetPct - currentPct) * ease;
+      const val = Math.round(pct * 255);
+      fill.style.height = (pct * 100) + '%';
+      if (isVolume) {
+        stateCache[entityId + '_volume'] = pct;
+        dimLocks[entityId] = Date.now();
+      } else {
+        TileEngine.setBrightness(entityId, val);
+        applyDimStyle(tile, pct);
+      }
+      if (step >= steps) { TileEngine.sliderAnimating = false; void fetchStates(); return; }
+      setTimeout(animateStep, duration / steps);
+    }
+    animateStep();
+  },
+
+
+  // Extracted: compute slider value from clientY and apply changes
+  _sliderUpdate(track, fill, entityId, isVolume, tile, clientY) {
+    if (!track || !fill) return;
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
+    const val = Math.round(pct * 255);
+    fill.style.height = (pct * 100) + '%';
+    if (isVolume) { TileEngine.setVolume(entityId, val); }
+    else { TileEngine.setBrightness(entityId, val); applyDimStyle(tile, pct); }
+  },
+
   startDim(e) {
+    if (!e) return;
     if (e.button && e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
     TileEngine.sliderActiveUntil = Date.now() + 60000;
     const track = e.currentTarget;
     const entityId = track.dataset.entity;
     const fill = track.querySelector('.tile-slider-fill');
+    if (!entityId || !fill) return;
     const isVolume = track.dataset.sliderType === 'volume';
     const tile = track.closest('.tile');
-
-    function update(clientY) {
-      const rect = track.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
-      const val = Math.round(pct * 255);
-      fill.style.height = (pct * 100) + '%';
-      if (isVolume) { TileEngine.setVolume(entityId, val); }
-      else {
-        TileEngine.setBrightness(entityId, val);
-        if (tile) {
-          const o = pct;
-          if (pct > 0) {
-            tile.style.background = `linear-gradient(145deg, rgba(255,255,255,${o}) 0%, rgba(245,245,245,${o}) 30%, rgba(235,235,235,${o}) 70%, rgba(224,224,224,${o}) 100%)`;
-            tile.style.borderTop = `1px solid rgba(255,255,255,${o*0.9})`;
-            tile.style.borderLeft = `1px solid rgba(255,255,255,${o*0.6})`;
-            tile.style.boxShadow = `4px 4px 10px rgba(0,0,0,0.35),-2px -2px 6px rgba(255,255,255,${o*0.08}),inset 0 1px 0 rgba(255,255,255,${o})`;
-          } else {
-            tile.style.background = '';
-            tile.style.borderTop = '';
-            tile.style.borderLeft = '';
-            tile.style.boxShadow = '';
-          }
-        }
-      }
-    }
-
     let dragged = false;
 
     function onMove(ev) {
       ev.preventDefault();
       dragged = true;
       const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
-      update(y);
+      TileEngine._sliderUpdate(track, fill, entityId, isVolume, tile, y);
     }
     function onUp(ev) {
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mouseup', onUp);
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onUp);
+      document.removeEventListener('touchcancel', onUp);
       TileEngine.sliderActiveUntil = Date.now() + 500;
 
       if (!dragged) {
-        // Click without drag — animate to target using global transition
         const y = ev.changedTouches ? ev.changedTouches[0].clientY : ev.clientY;
         const rect = track.getBoundingClientRect();
         const targetPct = Math.max(0, Math.min(1, (rect.bottom - y) / rect.height));
-        const targetVal = Math.round(targetPct * 255);
         const currentPct = parseFloat(fill.style.height) / 100 || 0;
         const duration = TileEngine.defaults.transitionSec * 1000;
-
-        // Frame-by-frame animation for slider fill (same for volume and brightness)
-        TileEngine.sliderAnimating = true;
-        const steps = Math.max(10, Math.round(duration / 20));
-        let step = 0;
-        // For volume: schedule stepped HA commands separately from the visual animation
-        if (isVolume) {
-          const volSteps = 5;
-          for (let i = 1; i <= volSteps; i++) {
-            setTimeout(() => {
-              const t = i / volSteps;
-              const pct = currentPct + (targetPct - currentPct) * t;
-              TileEngine.setVolume(entityId, Math.round(pct * 255), true);
-            }, (duration / volSteps) * i);
-          }
-        }
-        function animateStep() {
-          step++;
-          const t = step / steps;
-          const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
-          const pct = currentPct + (targetPct - currentPct) * ease;
-          const val = Math.round(pct * 255);
-          fill.style.height = (pct * 100) + '%';
-          if (isVolume) {
-            stateCache[entityId + '_volume'] = pct;
-            dimLocks[entityId] = Date.now();
-          } else {
-            TileEngine.setBrightness(entityId, val);
-            if (tile) {
-              const o = pct;
-              if (o > 0) {
-                tile.style.background = `linear-gradient(145deg, rgba(255,255,255,${o}) 0%, rgba(245,245,245,${o}) 30%, rgba(235,235,235,${o}) 70%, rgba(224,224,224,${o}) 100%)`;
-                tile.style.borderTop = `1px solid rgba(255,255,255,${o*0.9})`;
-                tile.style.borderLeft = `1px solid rgba(255,255,255,${o*0.6})`;
-                tile.style.boxShadow = `4px 4px 10px rgba(0,0,0,0.35),-2px -2px 6px rgba(255,255,255,${o*0.08}),inset 0 1px 0 rgba(255,255,255,${o})`;
-              } else {
-                tile.style.background = '';
-                tile.style.borderTop = '';
-                tile.style.borderLeft = '';
-                tile.style.boxShadow = '';
-              }
-            }
-          }
-          if (step >= steps) { TileEngine.sliderAnimating = false; setTimeout(fetchStates, 1000); return; }
-          setTimeout(animateStep, duration / steps);
-        }
-        animateStep();
+        TileEngine.animateSliderClick(track, fill, entityId, isVolume, tile, currentPct, targetPct, duration);
       } else {
         setTimeout(fetchStates, 1000);
       }
@@ -322,12 +362,15 @@ const TileEngine = {
     document.addEventListener('mouseup', onUp);
     document.addEventListener('touchmove', onMove, { passive: false });
     document.addEventListener('touchend', onUp);
+    document.addEventListener('touchcancel', onUp);
   },
 
   // --- Brightness Animation ---
   dimAnimations: {},
 
   animateBrightness(entityId, from, to, durationMs, finalState) {
+    if (!entityId) return;
+    if (durationMs <= 0) durationMs = 200;
     this.dimAnimations[entityId] = {
       from, to,
       startTime: performance.now(),
@@ -341,6 +384,7 @@ const TileEngine = {
   },
 
   dimAnimLoop() {
+    if (!TileEngine.dimAnimations) { requestAnimationFrame(TileEngine.dimAnimLoop); return; }
     const now = performance.now();
     for (const [entityId, anim] of Object.entries(TileEngine.dimAnimations)) {
       const elapsed = now - anim.startTime;
@@ -361,6 +405,7 @@ const TileEngine = {
   },
 
   dimAnimUpdateTile(entityId, brightness) {
+    if (!entityId) return;
     const track = document.querySelector(`[data-entity="${entityId}"][data-slider-type="brightness"]`);
     if (!track) return;
     const tile = track.closest('.tile');
@@ -402,6 +447,7 @@ const TileEngine = {
   // --- Fan Animation ---
   _fanState: {},
   fanLoop() {
+    if (!TileEngine._fanState) { requestAnimationFrame(TileEngine.fanLoop); return; }
     document.querySelectorAll('.tile.type-fan').forEach(tile => {
       const svg = tile.querySelector('.tile-icon-circle svg');
       if (!svg) return;
@@ -425,10 +471,11 @@ const TileEngine = {
     requestAnimationFrame(TileEngine.fanLoop);
   },
 
-  // --- UI Helpers ---
-  autoSizeNames() {
-    // Watermark icons
-    document.querySelectorAll('.tile-icon-bg').forEach(bg => {
+  // --- UI Helpers (auto-sizing sub-functions) ---
+  sizeWatermarkIcons() {
+    const elements = document.querySelectorAll('.tile-icon-bg');
+    if (!elements.length) return;
+    elements.forEach(bg => {
       const tile = bg.closest('.tile');
       if (!tile) return;
       const tw = tile.clientWidth, th = tile.clientHeight;
@@ -472,9 +519,13 @@ const TileEngine = {
       bg.style.left = (cx - size / 2) + 'px';
       bg.style.top = (cy - size / 2) + 'px';
     });
+  },
 
-    // Room tabs
-    document.querySelectorAll('.room-tab').forEach(el => {
+  sizeRoomTabs() {
+    const elements = document.querySelectorAll('.room-tab');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
       const text = el.textContent.trim();
       const hasSpaces = text.includes(' ');
       const maxW = el.clientWidth - 4;
@@ -486,18 +537,7 @@ const TileEngine = {
       if (hasSpaces) {
         el.style.whiteSpace = 'normal';
         const words = text.split(/\s+/);
-        const span = document.createElement('span');
-        span.style.cssText = `font-weight:600;white-space:nowrap;visibility:hidden;position:absolute;`;
-        document.body.appendChild(span);
-        let tries = 0, fits = false;
-        while (!fits && size > 5 && tries < 20) {
-          span.style.fontSize = size + 'px';
-          fits = true;
-          for (const w of words) { span.textContent = w; if (span.offsetWidth > maxW) { fits = false; break; } }
-          if (!fits) { size -= 0.5; el.style.fontSize = size + 'px'; }
-          tries++;
-        }
-        span.remove();
+        size = fitWordsToWidth(el, words, maxW, size, 5);
       } else {
         el.style.whiteSpace = 'nowrap';
         let tries = 0;
@@ -508,17 +548,25 @@ const TileEngine = {
         }
       }
     });
+  },
 
-    // Floor tabs
-    document.querySelectorAll('.floor-tab').forEach(el => {
+  sizeFloorTabs() {
+    const elements = document.querySelectorAll('.floor-tab');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
       const isActive = el.classList.contains('active');
       let size = Math.min(11, Math.max(7, window.innerHeight * 0.012));
       if (isActive) size *= 1.2;
       el.style.fontSize = size + 'px';
     });
+  },
 
-    // Tile state text
-    document.querySelectorAll('.tile-state').forEach(el => {
+  sizeTileStates() {
+    const elements = document.querySelectorAll('.tile-state');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
       let size = Math.min(13, Math.max(7, window.innerWidth * 0.0085));
       el.style.fontSize = size + 'px';
       let tries = 0;
@@ -528,67 +576,69 @@ const TileEngine = {
         tries++;
       }
     });
+  },
 
-    // Tile names
-    document.querySelectorAll('.tile-name').forEach(el => {
-      const text = el.textContent.trim();
-      const hasSpaces = text.includes(' ');
-      const tile = el.closest('.tile');
-      const hasSlider = tile && tile.classList.contains('has-slider');
-      let size = Math.min(16, Math.max(8, window.innerWidth * 0.011));
-      el.style.fontSize = size + 'px';
+  // Extracted: size a single tile name element
+  _sizeSingleTileName(el) {
+    if (!el) return;
+    const text = el.textContent.trim();
+    const hasSpaces = text.includes(' ');
+    const tile = el.closest('.tile');
+    if (!tile) return;
+    const hasSlider = tile.classList.contains('has-slider');
+    let size = Math.min(16, Math.max(8, window.innerWidth * 0.011));
+    el.style.fontSize = size + 'px';
 
-      const hasControls = hasSlider || (tile && tile.classList.contains('has-fan-speeds'));
-      const pad = tile.clientWidth * 0.04;
-      const maxW = hasControls
-        ? (tile.clientWidth * 0.5 - pad)
-        : (tile.clientWidth - tile.clientWidth * 0.16 - pad);
+    const hasControls = hasSlider || tile.classList.contains('has-fan-speeds');
+    const pad = tile.clientWidth * 0.04;
+    const maxW = hasControls
+      ? (tile.clientWidth * 0.5 - pad)
+      : (tile.clientWidth - tile.clientWidth * 0.16 - pad);
 
-      if (hasSpaces) {
-        el.style.whiteSpace = 'normal';
-        el.style.display = 'block';
-        el.style.maxWidth = maxW + 'px';
-        el.style.overflow = 'visible';
-        const words = text.split(/\s+/);
-        const span = document.createElement('span');
-        span.style.cssText = `font-size:${size}px;font-weight:600;white-space:nowrap;visibility:hidden;position:absolute;`;
-        document.body.appendChild(span);
-        let tries = 0, fits = false;
-        while (!fits && size > 5 && tries < 20) {
-          span.style.fontSize = size + 'px';
-          fits = true;
-          for (const w of words) {
-            span.textContent = w;
-            if (span.offsetWidth > maxW + 1) { fits = false; break; }
-          }
-          if (!fits) { size -= 0.5; el.style.fontSize = size + 'px'; }
-          tries++;
-        }
-        span.remove();
-      } else {
-        el.style.whiteSpace = 'nowrap';
-        el.style.display = 'block';
-        el.style.maxWidth = maxW + 'px';
-        el.style.overflow = 'visible';
-        let tries = 0;
-        while (el.scrollWidth > maxW + 1 && size > 5 && tries < 20) {
-          size -= 0.5;
-          el.style.fontSize = size + 'px';
-          tries++;
-        }
+    if (hasSpaces) {
+      el.style.whiteSpace = 'normal';
+      el.style.display = 'block';
+      el.style.maxWidth = maxW + 'px';
+      el.style.overflow = 'visible';
+      const words = text.split(/\s+/);
+      size = fitWordsToWidth(el, words, maxW, size, 5);
+    } else {
+      el.style.whiteSpace = 'nowrap';
+      el.style.display = 'block';
+      el.style.maxWidth = maxW + 'px';
+      el.style.overflow = 'visible';
+      let tries = 0;
+      while (el.scrollWidth > maxW + 1 && size > 5 && tries < 20) {
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+        tries++;
       }
+    }
 
-      const bottom = el.closest('.tile-bottom') || el.closest('.tile-bottom-media');
-      if (bottom && tile) {
-        const tileRect = tile.getBoundingClientRect();
-        let tries2 = 0;
-        while (bottom.getBoundingClientRect().bottom > tileRect.bottom && size > 5 && tries2 < 20) {
-          size -= 0.5;
-          el.style.fontSize = size + 'px';
-          tries2++;
-        }
+    const bottom = el.closest('.tile-bottom') || el.closest('.tile-bottom-media');
+    if (bottom && tile) {
+      const tileRect = tile.getBoundingClientRect();
+      let tries2 = 0;
+      while (bottom.getBoundingClientRect().bottom > tileRect.bottom && size > 5 && tries2 < 20) {
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+        tries2++;
       }
-    });
+    }
+  },
+
+  sizeTileNames() {
+    const elements = document.querySelectorAll('.tile-name');
+    if (!elements.length) return;
+    elements.forEach(el => TileEngine._sizeSingleTileName(el));
+  },
+
+  autoSizeNames() {
+    this.sizeWatermarkIcons();
+    this.sizeRoomTabs();
+    this.sizeFloorTabs();
+    this.sizeTileStates();
+    this.sizeTileNames();
   },
 
   // --- Engine Init ---
@@ -605,6 +655,7 @@ const TileEngine = {
     requestAnimationFrame(TileEngine.dimAnimLoop);
     requestAnimationFrame(TileEngine.fanLoop);
 
+    // stateCache is bounded by entity count (keys are fixed at init, not dynamically added)
     // Progress bar updater
     setInterval(() => {
       document.querySelectorAll('.tile.tile-wide .tile-progress-fill').forEach(fill => {
@@ -627,6 +678,7 @@ const TileEngine = {
 
 // --- Global function bindings (for onclick handlers in tile HTML) ---
 function toggleEntity(entityId) {
+  if (!entityId) return;
   if (!haToken || Date.now() < TileEngine.sliderActiveUntil) return;
   const domain = entityId.split('.')[0];
   const handler = TileEngine.toggleHandlers[domain];
@@ -648,4 +700,4 @@ function isDimLocked(id) { return TileEngine.isLocked(id); }
 function animateBrightness(a, b, c, d, e) { TileEngine.animateBrightness(a, b, c, d, e); }
 function cancelAnimation(id) { TileEngine.cancelAnimation(id); }
 // Expose dimAnimations globally for WebSocket handler in dashboard
-var dimAnimations = TileEngine.dimAnimations;
+const dimAnimations = TileEngine.dimAnimations;

@@ -197,6 +197,7 @@ const params = new URLSearchParams(location.search);
 const homeRoom = params.get('room') || 'living_room';
 
 function findFloorForRoom(roomId) {
+  if (!roomId) return '1st_floor';
   for (const [floorId, floor] of Object.entries(data)) {
     if (floor.rooms[roomId]) return floorId;
   }
@@ -208,6 +209,7 @@ let activeFloor = homeFloor;
 let activeRooms = { [homeFloor]: homeRoom };
 
 function goHome() {
+  if (!data[homeFloor]) return;
   activeFloor = homeFloor;
   activeRooms[homeFloor] = homeRoom;
   render();
@@ -215,61 +217,82 @@ function goHome() {
 
 function selectFloor(id) {
   if (id === activeFloor) return;
+  if (!data[id]) return;
   const grid = document.getElementById('tileGrid');
+  if (!grid) return;
   grid.classList.add('fading');
   setTimeout(() => { activeFloor = id; render(); grid.classList.remove('fading'); }, 200);
 }
 function selectRoom(id) {
   if (id === activeRooms[activeFloor]) return;
+  if (!data[activeFloor] || !data[activeFloor].rooms[id]) return;
   const grid = document.getElementById('tileGrid');
+  if (!grid) return;
   grid.classList.add('fading');
   setTimeout(() => { activeRooms[activeFloor] = id; render(); grid.classList.remove('fading'); }, 200);
 }
 
+function collectEntityIds(e, ids) {
+  if (!e || !e.id) return;
+  ids.push(e.id);
+  if (e.id2) ids.push(e.id2);
+  if (e.idBat) ids.push(e.idBat);
+  if (e.idStatus) ids.push(e.idStatus);
+  if (!e.groupMembers) return;
+  for (let gi = 0; gi < e.groupMembers.length; gi++) {
+    ids.push(e.groupMembers[gi].id);
+  }
+}
+
 function allEntityIds() {
+  if (!data) return [];
   const ids = [];
-  Object.values(data).forEach(floor =>
-    Object.values(floor.rooms).forEach(room =>
-      room.entities.forEach(e => {
-        ids.push(e.id);
-        if (e.id2) ids.push(e.id2);
-        if (e.idBat) ids.push(e.idBat);
-        if (e.idStatus) ids.push(e.idStatus);
-        if (e.groupMembers) e.groupMembers.forEach(m => ids.push(m.id));
-      })
-    )
-  );
+  const floors = Object.values(data);
+  for (let fi = 0; fi < floors.length; fi++) {
+    const rooms = Object.values(floors[fi].rooms);
+    for (let ri = 0; ri < rooms.length; ri++) {
+      const entities = rooms[ri].entities;
+      for (let ei = 0; ei < entities.length; ei++) {
+        collectEntityIds(entities[ei], ids);
+      }
+    }
+  }
   return ids;
 }
 
-// Apply a single HA state object to stateCache
+function applyBrightness(s, id) {
+  if (!s || !id) return;
+  if (s.attributes && s.attributes.brightness !== undefined && s.attributes.brightness !== null) {
+    stateCache[id + '_brightness'] = s.attributes.brightness;
+  } else if (id.startsWith('light.') && s.state === 'off') {
+    stateCache[id + '_brightness'] = 0;
+  }
+}
+
+function applyPercentage(s, id) {
+  if (!s || !id) return;
+  if (isDimLocked(id)) return;
+  if (s.attributes && s.attributes.percentage !== undefined) {
+    stateCache[id + '_percentage'] = s.attributes.percentage;
+  } else if (id.startsWith('fan.') && s.state === 'off') {
+    stateCache[id + '_percentage'] = 0;
+  }
+}
+
 function applyState(s) {
+  if (!s || !s.entity_id) return;
   const id = s.entity_id;
   if (!isDimLocked(id)) {
     stateCache[id] = s.state;
   }
   if (!isDimLocked(id)) {
-    // Don't overwrite brightness if a turn-off animation is running
     const hasAnim = typeof dimAnimations !== 'undefined' && dimAnimations[id];
-    if (!hasAnim) {
-      if (s.attributes && s.attributes.brightness !== undefined && s.attributes.brightness !== null) {
-        stateCache[id + '_brightness'] = s.attributes.brightness;
-      } else if (id.startsWith('light.') && s.state === 'off') {
-        stateCache[id + '_brightness'] = 0;
-      }
-    }
-    if (!isDimLocked(id)) {
-      if (s.attributes && s.attributes.percentage !== undefined) {
-        stateCache[id + '_percentage'] = s.attributes.percentage;
-      } else if (id.startsWith('fan.') && s.state === 'off') {
-        stateCache[id + '_percentage'] = 0;
-      }
-    }
+    if (!hasAnim) applyBrightness(s, id);
+    applyPercentage(s, id);
   }
-  if (s.attributes && s.attributes.supported_color_modes) {
-    stateCache[id + '_dimmable'] = s.attributes.supported_color_modes.some(
-      m => m !== 'onoff'
-    );
+  const colorModes = (s.attributes && s.attributes.supported_color_modes) || [];
+  if (colorModes.length > 0) {
+    stateCache[id + '_dimmable'] = colorModes.some(m => m !== 'onoff');
   }
   if (s.attributes && s.attributes.transition !== undefined) {
     stateCache[id + '_transition'] = s.attributes.transition;
@@ -291,12 +314,14 @@ function applyState(s) {
 
 // Initial bulk fetch (once on load, then WebSocket takes over)
 async function fetchStates() {
+  if (!haToken) return;
   try {
     const resp = await fetch(HA_URL + '/api/states', {
       headers: { 'Authorization': 'Bearer ' + haToken }
     });
     if (!resp.ok) return;
     const states = await resp.json();
+    if (!states || !Array.isArray(states)) return;
     const needed = new Set(allEntityIds());
     states.forEach(s => {
       if (needed.has(s.entity_id)) applyState(s);
@@ -313,161 +338,154 @@ let ws = null;
 let wsId = 1;
 let wsReconnectTimer = null;
 
+function handleTurnOff(id, oldBri) {
+  if (!id) return;
+  if (dimAnimations[id]) return;
+  const transition = stateCache[id + '_transition'];
+  const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
+  animateBrightness(id, oldBri, 0, ms, 'off');
+}
+
+function handleTurnOn(id, newS, newBri) {
+  if (!id || !newS) return;
+  const targetBri = newBri || 255;
+  if (dimAnimations[id]) {
+    const a = dimAnimations[id];
+    const elapsed = performance.now() - a.startTime;
+    const p = Math.min(1, elapsed / a.duration);
+    const currentVal = Math.round(a.from + (a.to - a.from) * p);
+    a.from = currentVal;
+    a.to = targetBri;
+    a.startTime = performance.now();
+    a.duration = a.duration - elapsed;
+    if (a.duration < 200) a.duration = 200;
+  } else {
+    applyState(newS);
+    stateCache[id + '_brightness'] = 0;
+    render();
+    const transition = stateCache[id + '_transition'];
+    const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
+    animateBrightness(id, 0, targetBri, ms);
+  }
+  if (dimAnimations[id] && dimAnimations[id].from > 0) applyState(newS);
+}
+
+function handleBriChange(id, oldBri, newBri) {
+  if (!id) return;
+  if (dimAnimations[id]) {
+    const a = dimAnimations[id];
+    const elapsed = performance.now() - a.startTime;
+    const p = Math.min(1, elapsed / a.duration);
+    const currentVal = Math.round(a.from + (a.to - a.from) * p);
+    a.from = currentVal;
+    a.to = newBri;
+    a.startTime = performance.now();
+    a.duration = Math.max(200, a.duration - elapsed);
+    return;
+  }
+  const currentBri = stateCache[id + '_brightness'] || oldBri;
+  const diff = Math.abs(newBri - currentBri);
+  const ms = Math.max(300, Math.min(2000, diff * 8));
+  animateBrightness(id, currentBri, newBri, ms);
+}
+
+function handleWsMessage(evt, needed) {
+  if (!evt || !evt.data) return;
+  if (!needed || !ws) return;
+  const msg = JSON.parse(evt.data);
+  if (!msg || !msg.type) return;
+
+  if (msg.type === 'auth_required') {
+    ws.send(JSON.stringify({ type: 'auth', access_token: haToken }));
+    return;
+  }
+  if (msg.type === 'auth_ok') {
+    stateCache._live = true;
+    render();
+    ws.send(JSON.stringify({ id: wsId++, type: 'subscribe_events', event_type: 'state_changed' }));
+    return;
+  }
+  if (msg.type === 'auth_invalid') {
+    stateCache._live = false;
+    render();
+    return;
+  }
+  if (msg.type !== 'event' || !msg.event || msg.event.event_type !== 'state_changed') return;
+  handleStateChange(msg.event.data, needed);
+}
+
+function handleStateChange(d, needed) {
+  if (!d || !d.new_state || !needed.has(d.entity_id)) return;
+  const id = d.entity_id;
+  const oldS = d.old_state;
+  const newS = d.new_state;
+
+  const newModes = newS.attributes && newS.attributes.supported_color_modes;
+  const isDimmable = (newModes && newModes.some(m => m !== 'onoff')) || stateCache[id + '_dimmable'];
+
+  if (!isDimmable || !id.startsWith('light.') || isDimLocked(id)) {
+    applyState(newS);
+    render();
+    return;
+  }
+
+  const oldBri = (oldS && oldS.attributes && oldS.attributes.brightness) || (oldS && oldS.state === 'on' ? 255 : 0);
+  const newBri = (newS.attributes && newS.attributes.brightness) || (newS.state === 'on' ? 255 : 0);
+  const wasOn = oldS && (oldS.state === 'on');
+  const nowOn = newS.state === 'on';
+
+  if (wasOn && !nowOn) { handleTurnOff(id, oldBri); }
+  else if (!wasOn && nowOn) { handleTurnOn(id, newS, newBri); }
+  else if (wasOn && nowOn && oldBri !== newBri) { handleBriChange(id, oldBri, newBri); }
+  else { applyState(newS); render(); }
+}
+
 function connectWebSocket() {
+  if (!haToken || !HA_URL) return;
   const wsUrl = HA_URL.replace(/^http/, 'ws') + '/api/websocket';
+  if (!wsUrl) return;
   ws = new WebSocket(wsUrl);
   const needed = new Set(allEntityIds());
 
   ws.onopen = () => {};
-
-  ws.onmessage = (evt) => {
-    const msg = JSON.parse(evt.data);
-
-    if (msg.type === 'auth_required') {
-      ws.send(JSON.stringify({ type: 'auth', access_token: haToken }));
-    }
-
-    if (msg.type === 'auth_ok') {
-      stateCache._live = true;
-      render();
-      // Subscribe to all state changes
-      ws.send(JSON.stringify({ id: wsId++, type: 'subscribe_events', event_type: 'state_changed' }));
-    }
-
-    if (msg.type === 'auth_invalid') {
-      stateCache._live = false;
-      render();
-    }
-
-    if (msg.type === 'event' && msg.event && msg.event.event_type === 'state_changed') {
-      const d = msg.event.data;
-      if (d && d.new_state && needed.has(d.entity_id)) {
-        const id = d.entity_id;
-        const oldS = d.old_state;
-        const newS = d.new_state;
-
-        // Check dimmable from the event attributes (don't rely only on cache)
-        const newModes = newS.attributes && newS.attributes.supported_color_modes;
-        const isDimmable = (newModes && newModes.some(m => m !== 'onoff')) || stateCache[id + '_dimmable'];
-        const locked = isDimLocked(id);
-
-        // Animate brightness transitions from external sources (not locked by local interaction)
-        if (isDimmable && id.startsWith('light.') && !locked) {
-          const oldBri = (oldS && oldS.attributes && oldS.attributes.brightness) || (oldS && oldS.state === 'on' ? 255 : 0);
-          const newBri = (newS.attributes && newS.attributes.brightness) || (newS.state === 'on' ? 255 : 0);
-          const wasOn = oldS && (oldS.state === 'on');
-          const nowOn = newS.state === 'on';
-          console.log('WS DIM', id, {wasOn, nowOn, oldBri, newBri, hasAnim: !!dimAnimations[id], cachedBri: stateCache[id+'_brightness']});
-
-          if (wasOn && !nowOn) {
-            // Turned off — start animation if not already running from local toggle
-            // Don't apply state yet — keep 'on' so tile fades with brightness
-            if (!dimAnimations[id]) {
-              const transition = stateCache[id + '_transition'];
-              const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
-              animateBrightness(id, oldBri, 0, ms, 'off');
-            }
-          } else if (!wasOn && nowOn) {
-            // Turned on — start or retarget animation with real brightness from HA
-            const targetBri = newBri || 255;
-            if (dimAnimations[id]) {
-              // Animation running from local toggle — retarget from current position
-              const a = dimAnimations[id];
-              const elapsed = performance.now() - a.startTime;
-              const p = Math.min(1, elapsed / a.duration);
-              const currentVal = Math.round(a.from + (a.to - a.from) * p);
-              a.from = currentVal;
-              a.to = targetBri;
-              a.startTime = performance.now();
-              a.duration = a.duration - elapsed; // remaining time
-              if (a.duration < 200) a.duration = 200;
-            } else {
-              // Apply state and render so tile gets state-on class (yellow slider fill)
-              applyState(newS);
-              stateCache[id + '_brightness'] = 0;  // start at 0 visually
-              render();
-              const transition = stateCache[id + '_transition'];
-              const ms = (transition && transition > 0 ? transition : TileEngine.defaults.transitionSec) * 1000;
-              animateBrightness(id, 0, targetBri, ms);
-            }
-            // applyState already called in else branch; only call for retarget case
-            if (dimAnimations[id] && dimAnimations[id].from > 0) applyState(newS);
-          } else if (wasOn && nowOn && oldBri !== newBri) {
-            // Brightness changed externally — retarget if animating, otherwise start new
-            if (dimAnimations[id]) {
-              const a = dimAnimations[id];
-              const elapsed = performance.now() - a.startTime;
-              const p = Math.min(1, elapsed / a.duration);
-              const currentVal = Math.round(a.from + (a.to - a.from) * p);
-              a.from = currentVal;
-              a.to = newBri;
-              a.startTime = performance.now();
-              a.duration = Math.max(200, a.duration - elapsed);
-            } else {
-              const currentBri = stateCache[id + '_brightness'] || oldBri;
-              const diff = Math.abs(newBri - currentBri);
-              const ms = Math.max(300, Math.min(2000, diff * 8));
-              animateBrightness(id, currentBri, newBri, ms);
-            }
-          } else {
-            // No brightness change to animate — just apply and render
-            applyState(newS);
-            render();
-          }
-        } else {
-          // Non-dimmable or locked — apply directly
-          applyState(newS);
-          render();
-        }
-      }
-    }
-  };
-
+  ws.onmessage = (evt) => handleWsMessage(evt, needed);
   ws.onclose = () => {
     stateCache._live = false;
     render();
-    // Reconnect after 5 seconds
     clearTimeout(wsReconnectTimer);
     wsReconnectTimer = setTimeout(connectWebSocket, 5000);
   };
-
-  ws.onerror = () => {
-    ws.close();
-  };
+  ws.onerror = () => { ws.close(); };
 }
 
 let _lastFloor = null, _lastRoom = null, _lastLive = null;
 
-function render() {
-  if (TileEngine.sliderAnimating) return;
-  const rooms = data[activeFloor].rooms;
-  const roomIds = Object.keys(rooms);
-  if (!activeRooms[activeFloor] || !rooms[activeRooms[activeFloor]]) {
-    activeRooms[activeFloor] = roomIds[0];
-  }
-  const activeRoom = activeRooms[activeFloor];
-  const isLive = !!stateCache._live;
-
+function renderTabs(rooms, roomIds, activeRoom, isLive) {
+  if (!rooms || !roomIds) return;
   const tabsChanged = _lastFloor !== activeFloor || _lastRoom !== activeRoom || _lastLive !== isLive;
-  if (tabsChanged) {
-    _lastFloor = activeFloor; _lastRoom = activeRoom; _lastLive = isLive;
+  if (!tabsChanged) return;
+  _lastFloor = activeFloor; _lastRoom = activeRoom; _lastLive = isLive;
 
-    const floorNames = { "2nd_floor": "2nd", "1st_floor": "1st", outside: "Out", home: "Home" };
-    document.getElementById('floorTabs').innerHTML = Object.entries(data).map(([id, floor]) =>
-      `<button class="floor-tab ${id === activeFloor ? 'active' : ''}" onclick="selectFloor('${id}')">
-        ${floorNames[id] || floor.name}
-      </button>`
-    ).join('');
+  const floorNames = { "2nd_floor": "2nd", "1st_floor": "1st", outside: "Out", home: "Home" };
+  document.getElementById('floorTabs').innerHTML = Object.entries(data).map(([id, floor]) =>
+    `<button class="floor-tab ${id === activeFloor ? 'active' : ''}" onclick="selectFloor('${id}')">
+      ${floorNames[id] || floor.name}
+    </button>`
+  ).join('');
 
-    const homeBtn = document.getElementById('homeBtn');
-    homeBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 2.1L1 12h3v9a1 1 0 0 0 1 1h5v-6a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6h5a1 1 0 0 0 1-1v-9h3L12 2.1z" fill="rgba(255,255,255,0.85)"/></svg>';
-    homeBtn.className = 'home-btn ' + (isLive ? 'live' : 'offline');
-    document.getElementById('roomBar').innerHTML = roomIds.map(id =>
-      `<button class="room-tab ${id === activeRoom ? 'active' : ''}" onclick="selectRoom('${id}')">${rooms[id].name}</button>`
-    ).join('');
-  }
+  const homeBtn = document.getElementById('homeBtn');
+  if (!homeBtn) return;
+  homeBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 2.1L1 12h3v9a1 1 0 0 0 1 1h5v-6a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6h5a1 1 0 0 0 1-1v-9h3L12 2.1z" fill="rgba(255,255,255,0.85)"/></svg>';
+  homeBtn.className = 'home-btn ' + (isLive ? 'live' : 'offline');
+  document.getElementById('roomBar').innerHTML = roomIds.map(id =>
+    `<button class="room-tab ${id === activeRoom ? 'active' : ''}" onclick="selectRoom('${id}')">${rooms[id].name}</button>`
+  ).join('');
+}
 
+function renderGrid(rooms, activeRoom) {
+  if (!rooms || !activeRoom) return;
   const grid = document.getElementById('tileGrid');
+  if (!grid) return;
   const room = rooms[activeRoom];
   if (!room || room.entities.length === 0) {
     grid.innerHTML = '<div class="empty-msg">No Accessories</div>';
@@ -501,12 +519,27 @@ function render() {
     }
     return prefix + renderTile(e);
   }).join('');
+}
 
+function render() {
+  if (TileEngine.sliderAnimating) return;
+  if (!data[activeFloor]) return;
+  const rooms = data[activeFloor].rooms;
+  const roomIds = Object.keys(rooms);
+  if (!activeRooms[activeFloor] || !rooms[activeRooms[activeFloor]]) {
+    activeRooms[activeFloor] = roomIds[0];
+  }
+  const activeRoom = activeRooms[activeFloor];
+  const isLive = !!stateCache._live;
+
+  renderTabs(rooms, roomIds, activeRoom, isLive);
+  renderGrid(rooms, activeRoom);
 }
 
 window.addEventListener('resize', () => render());
 
 async function init() {
+  if (!HA_URL) return;
   haToken = new URLSearchParams(location.search).get('token') || haToken;
   render();
   await fetchStates();

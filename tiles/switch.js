@@ -2,6 +2,7 @@ TileEngine.register('switch', {
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>',
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable' || s === 'unknown') return 'No Response';
     if (s === 'on') return 'On';
@@ -10,6 +11,7 @@ TileEngine.register('switch', {
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     return TileEngine.state(entity.id) === 'on';
   },
 
@@ -24,6 +26,8 @@ TileEngine.register('switch', {
   },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     return TileEngine.renderStandard(entity, {
       icon: this.icon,
       iconColor: TileEngine.iconColor(entity),
@@ -43,6 +47,8 @@ TileEngine.register('switch', {
   },
 
   toggle(entityId) {
+    if (!entityId) return;
+    if (!TileEngine || !TileEngine.callService) return;
     const wasOn = TileEngine.state(entityId) === 'on';
     TileEngine.setState(entityId, wasOn ? 'off' : 'on');
     TileEngine.lock(entityId);

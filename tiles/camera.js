@@ -2,6 +2,7 @@ TileEngine.register('camera', {
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable' || s === 'unknown') return 'No Response';
     if (s === 'on') return 'On';
@@ -10,12 +11,14 @@ TileEngine.register('camera', {
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     return TileEngine.state(entity.id) === 'on';
   },
 
   isSensor: false,
 
-  isAlert() {
+  isAlert(entity) {
+    if (!entity || !entity.id) return false;
     return false;
   },
 
@@ -24,6 +27,8 @@ TileEngine.register('camera', {
   },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     return TileEngine.renderStandard(entity, {
       icon: this.icon,
       iconColor: TileEngine.iconColor(entity),

@@ -1,11 +1,22 @@
 TileEngine.register('temp_humidity', {
   isSensor: true,
-  isOn() { return false; },
-  isAlert() { return false; },
+  isOn(entity) {
+    if (!entity || !entity.id) return false;
+    return false;
+  },
+  isAlert(entity) {
+    if (!entity || !entity.id) return false;
+    return false;
+  },
   priority() { return 10; },
-  formatState(entity) { return ''; },
+  formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
+    return '';
+  },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     const T = TileEngine;
     const cls = T.baseClass(entity);
     const offline = T.offlineHtml(entity);

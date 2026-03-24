@@ -2,18 +2,21 @@ TileEngine.register('cover', {
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>',
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable' || s === 'unknown') return 'No Response';
     return s === 'closed' ? 'Closed' : 'Open';
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     return TileEngine.state(entity.id) === 'open';
   },
 
   isSensor: false,
 
-  isAlert() {
+  isAlert(entity) {
+    if (!entity || !entity.id) return false;
     return false;
   },
 
@@ -22,6 +25,8 @@ TileEngine.register('cover', {
   },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     return TileEngine.renderStandard(entity, {
       icon: this.icon,
       iconColor: TileEngine.iconColor(entity),
@@ -41,6 +46,8 @@ TileEngine.register('cover', {
   },
 
   toggle(entityId) {
+    if (!entityId) return;
+    if (!TileEngine || !TileEngine.callService) return;
     const wasOn = TileEngine.state(entityId) === 'open';
     TileEngine.setState(entityId, wasOn ? 'closed' : 'open');
     TileEngine.lock(entityId);

@@ -1,4 +1,6 @@
 function setFanSpeed(entityId, percentage) {
+  if (!entityId) return;
+  if (percentage < 0 || percentage > 100) return;
   stateCache[entityId + '_percentage'] = percentage;
   stateCache[entityId] = percentage > 0 ? 'on' : 'off';
   dimLocks[entityId] = Date.now();
@@ -14,6 +16,7 @@ TileEngine.register('fan', {
   icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12c-1.7-2.4-2-5.8-.3-8.3C13.5 1 16.5.7 18.8 2.4c1.2.9 1.8 2.2 1.2 3.6-.8 1.8-3.2 2.5-5 2"/><path d="M12 12c2.4-1.7 5.8-2 8.3-.3C23 13.5 23.3 16.5 21.6 18.8c-.9 1.2-2.2 1.8-3.6 1.2-1.8-.8-2.5-3.2-2-5"/><path d="M12 12c1.7 2.4 2 5.8.3 8.3-1.8 2.7-4.8 3-7.1 1.3-1.2-.9-1.8-2.2-1.2-3.6.8-1.8 3.2-2.5 5-2"/><path d="M12 12c-2.4 1.7-5.8 2-8.3.3C1 10.5.7 7.5 2.4 5.2c.9-1.2 2.2-1.8 3.6-1.2 1.8.8 2.5 3.2 2 5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>`,
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable') return 'No Response';
     if (s === 'on') return 'On';
@@ -22,6 +25,7 @@ TileEngine.register('fan', {
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     return TileEngine.state(entity.id) === 'on';
   },
 
@@ -30,10 +34,13 @@ TileEngine.register('fan', {
   isAlert() { return false; },
 
   priority(entity) {
+    if (!entity) return 200;
     return entity.name.toLowerCase().includes('ceiling') ? 20 : 40;
   },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     const T = TileEngine;
     const on = this.isOn(entity);
     const state = this.formatState(entity);
@@ -67,6 +74,8 @@ TileEngine.register('fan', {
   },
 
   async toggle(entityId) {
+    if (!entityId) return;
+    if (!TileEngine || !TileEngine.callService) return;
     const wasOn = TileEngine.state(entityId) === 'on';
     if (wasOn) {
       TileEngine.setState(entityId, 'off');
@@ -83,13 +92,13 @@ TileEngine.register('fan', {
     if (!wasOn) {
       try {
         const s = await TileEngine.getEntityState(entityId);
-        if (s.attributes && s.attributes.percentage !== undefined) {
+        if (s && s.attributes && s.attributes.percentage !== undefined) {
           TileEngine.setAttr(entityId, 'percentage', s.attributes.percentage);
           TileEngine.setState(entityId, s.state);
           TileEngine.lock(entityId);
           render();
         }
-      } catch(e) {}
+      } catch(e) { /* state recovery via WebSocket */ }
     }
   },
 

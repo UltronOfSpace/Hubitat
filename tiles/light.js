@@ -2,6 +2,7 @@ TileEngine.register('light', {
   icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>',
 
   formatState(entity) {
+    if (!entity || !entity.id) return 'Unknown';
     const s = TileEngine.state(entity.id);
     if (s === 'unavailable' || s === 'unknown') return 'No Response';
     if (s === 'on') return 'On';
@@ -10,6 +11,7 @@ TileEngine.register('light', {
   },
 
   isOn(entity) {
+    if (!entity || !entity.id) return false;
     return TileEngine.state(entity.id) === 'on';
   },
 
@@ -20,12 +22,15 @@ TileEngine.register('light', {
   },
 
   priority(entity) {
+    if (!entity) return 200;
     const name = (entity.name || '').toLowerCase();
     if (name.includes('ceiling')) return 30;
     return 50;
   },
 
   render(entity) {
+    if (!entity || !entity.id) return '';
+    if (!TileEngine) return '';
     const on = TileEngine.state(entity.id) === 'on';
     const dimmable = stateCache[entity.id + '_dimmable'];
     const brightness = stateCache[entity.id + '_brightness'] || (on ? 255 : 0);
@@ -86,6 +91,8 @@ TileEngine.register('light', {
   },
 
   toggle(entityId) {
+    if (!entityId) return;
+    if (!TileEngine || !TileEngine.callService) return;
     const wasOn = TileEngine.state(entityId) === 'on';
     const isDim = TileEngine.attr(entityId, 'dimmable');
 

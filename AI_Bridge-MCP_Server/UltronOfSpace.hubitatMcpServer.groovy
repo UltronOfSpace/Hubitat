@@ -38,44 +38,118 @@ def mainPage() {
         try {
             createAccessToken()
         } catch (e) {
-            return dynamicPage(name: "mainPage", title: "OAuth Required", install: false) {
-                section {
-                    paragraph "Enable OAuth in the app's code (Apps Code → AI Bridge - MCP Server → OAuth) before installing."
-                }
-            }
+            return oauthRequiredPage()
         }
     }
 
     dynamicPage(name: "mainPage", title: "AI Bridge - MCP Server", install: true, uninstall: true) {
         section("Devices") {
-            paragraph "Pick the devices the AI can see and control."
+            paragraph "Pick the devices the AI can see and control. (The AI is sandboxed to only these devices.)"
             input name: "selectedDevices", type: "capability.*",
                   title: "Devices", multiple: true, required: false
-        }
-
-        section("Access") {
-            input name: "logging", type: "bool",
-                  title: "Enable debug logging", defaultValue: false
         }
 
         if (app.installationState == "COMPLETE" && state.accessToken) {
             String base = getBaseUrl()
             String token = state.accessToken
+            String mcpUrl = "${base}/mcp?access_token=${token}"
+            String openApiUrl = "${base}/openapi.json?access_token=${token}"
 
-            section("Endpoint URLs (copy these into your AI client)") {
-                paragraph buildUrlPanel("MCP endpoint (Claude Desktop, Cursor)",
-                    "${base}/mcp?access_token=${token}")
-                paragraph buildUrlPanel("OpenAPI spec (ChatGPT Custom GPT, Grok, Gemini)",
-                    "${base}/openapi.json?access_token=${token}")
-                paragraph buildUrlPanel("Access token",
-                    token)
+            section("🔗 Endpoint URLs") {
+                paragraph "<b>Copy these into your AI client of choice.</b> They're permanent — bookmark this page if needed."
+                paragraph buildUrlPanel("MCP endpoint", mcpUrl,
+                    "For Claude Desktop, Cursor, and other MCP-native clients.")
+                paragraph buildUrlPanel("OpenAPI spec", openApiUrl,
+                    "For ChatGPT Custom GPTs, Grok Actions, Gemini Extensions.")
+                paragraph buildUrlPanel("Access token (alone)", token,
+                    "Only needed if an AI client asks for the token separately.")
             }
 
-            section("Setup guides") {
-                paragraph "<b>Claude Desktop:</b> Settings → Developer → Edit Config. Add an MCP server entry with command <code>npx</code>, args <code>[\"mcp-remote\", \"&lt;MCP endpoint URL&gt;\"]</code>. Restart Claude."
-                paragraph "<b>ChatGPT:</b> Create a new Custom GPT → Actions → Import from URL → paste the OpenAPI URL. Select <i>API Key</i> auth with the access token in a query parameter named <code>access_token</code>."
-                paragraph "<b>Grok / Gemini:</b> Use their \"custom tool\" or \"action\" feature. Paste the OpenAPI URL. Same auth."
+            section("🤖 Claude Desktop setup") {
+                paragraph """
+<ol style='line-height:1.7'>
+  <li>Open Claude Desktop → <b>Settings</b> → <b>Developer</b> → <b>Edit Config</b></li>
+  <li>Add this inside <code>mcpServers</code>:</li>
+</ol>
+<pre style='background:#f4f4f4;padding:10px;border-radius:4px;font-size:12px;overflow-x:auto'>{
+  "mcpServers": {
+    "hubitat": {
+      "command": "npx",
+      "args": ["mcp-remote", "${mcpUrl}"]
+    }
+  }
+}</pre>
+<ol start='3' style='line-height:1.7'>
+  <li>Restart Claude Desktop</li>
+  <li>Try: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light."</i></li>
+</ol>
+""".toString()
             }
+
+            section("💬 ChatGPT Custom GPT setup") {
+                paragraph """
+<ol style='line-height:1.7'>
+  <li>In ChatGPT, go to <b>Explore GPTs</b> → <b>Create a GPT</b></li>
+  <li>Click <b>Configure</b> → <b>Actions</b> → <b>Create new action</b></li>
+  <li>Click <b>Import from URL</b> and paste the <b>OpenAPI spec</b> URL above</li>
+  <li>Under <b>Authentication</b>, choose <b>API Key</b>:
+    <ul>
+      <li>Auth Type: <b>Custom</b></li>
+      <li>Custom Header Name: leave blank (token is in the URL)</li>
+    </ul>
+  </li>
+  <li>Save the GPT. The integration persists across every conversation.</li>
+</ol>
+""".toString()
+            }
+
+            section("🔎 Grok / Gemini / other AI clients") {
+                paragraph "Use the client's custom action / tool / extension feature. Paste the OpenAPI URL. Done."
+            }
+        }
+
+        section("Advanced") {
+            input name: "logging", type: "bool",
+                  title: "Enable debug logging", defaultValue: false
+        }
+    }
+}
+
+private oauthRequiredPage() {
+    Integer appTypeId = app.getAppTypeId() ?: 0
+    String editorUrl = "/app/editor/${appTypeId}"
+
+    dynamicPage(name: "mainPage", title: "One-time setup: Enable OAuth", install: false, refreshInterval: 0) {
+        section {
+            paragraph """
+<div style='background:#fff4e6;border-left:4px solid #f39c12;padding:12px;border-radius:4px;margin-bottom:8px'>
+<b>⚡ One-time Hubitat platform step</b><br>
+Hubitat requires user-installed apps to manually enable OAuth before exposing HTTP endpoints.
+This takes about 5 seconds and only needs to be done once.
+</div>
+""".toString()
+        }
+
+        section("Steps") {
+            paragraph """
+<ol style='line-height:1.8'>
+  <li>Open <a href='${editorUrl}' target='_blank'><b>Apps code → AI Bridge - MCP Server</b></a> (opens in new tab)</li>
+  <li>In the top-right of the code editor, click the <b>OAuth</b> button</li>
+  <li>Click <b>Enable OAuth in App</b> (leave all defaults)</li>
+  <li>Click <b>Update</b></li>
+  <li>Come back to this page and click <b>Done</b> below — the app will initialize automatically</li>
+</ol>
+""".toString()
+        }
+
+        section {
+            paragraph """
+<small style='color:#666'>
+<b>Why this step exists:</b> Hubitat blocks user apps from exposing HTTP endpoints by default as a security measure.
+Every Hubitat app with an external API (Maker API, HomeBridge, WebCoRE, etc.) has this same one-time gate.
+Once enabled, it stays enabled — you'll never see this page again.
+</small>
+""".toString()
         }
     }
 }
@@ -84,8 +158,15 @@ private String getBaseUrl() {
     return "${getFullLocalApiServerUrl()}"
 }
 
-private String buildUrlPanel(String label, String value) {
-    return "<b>${label}:</b><br><code style='word-break:break-all'>${value}</code>"
+private String buildUrlPanel(String label, String value, String subtitle = null) {
+    String sub = subtitle ? "<div style='color:#666;font-size:12px;margin-bottom:4px'>${subtitle}</div>" : ""
+    return """
+<div style='background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;padding:10px;margin-bottom:8px'>
+  <b>${label}</b>
+  ${sub}
+  <code style='display:block;word-break:break-all;background:#fff;padding:6px;border-radius:3px;border:1px solid #e9ecef;font-size:11px'>${value}</code>
+</div>
+""".toString()
 }
 
 def installed() { initialize() }

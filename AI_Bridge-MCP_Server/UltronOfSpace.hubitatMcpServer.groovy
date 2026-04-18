@@ -46,7 +46,7 @@ def mainPage() {
 
         // Step 1 — Devices
         section("Step 1: Pick your devices") {
-            paragraph "<small style='color:#666'>The AI will only see and control these devices. Nothing else on your hub is exposed.</small>"
+            paragraph "<small style='color:#666'>The AI will see and control these devices, plus basic hub status (mode, HSM, hub temperature/memory, rooms). Administrative tools (installed apps, drivers, hub variables, logs, network, radios) are off by default — turn them on under <b>Advanced</b> if you want them.</small>"
             input name: "selectedDevices", type: "capability.*",
                   title: "Which devices should the AI control?", multiple: true, required: false
         }
@@ -81,6 +81,10 @@ def mainPage() {
         section("Advanced") {
             input name: "logging", type: "bool",
                   title: "Enable debug logging", defaultValue: false
+            paragraph "<small style='color:#666'><b>Administrative tools</b> let the AI read your installed apps and their settings (which often include API keys for other services like Ecobee, MyQ, Alexa), read driver source, read hub-wide logs, and read/write hub variables used by your other automations. Off by default. Only enable if you trust the AI client and the connection.</small>"
+            input name: "adminToolsEnabled", type: "bool",
+                  title: "Allow administrative tools (apps, drivers, variables, logs, network, radios)",
+                  defaultValue: false
         }
     }
 }
@@ -248,7 +252,7 @@ private void renderGeminiInstructions(String cloudUrl, String localUrl, boolean 
 Google's Gemini currently doesn't have a general-purpose "paste an OpenAPI URL" feature on the free tier. Gemini <b>Extensions</b> is a curated first-party list (Gmail, Drive, etc.) — you can't add custom tools to it. <b>Gems</b> (the custom-assistant feature) does allow some tool integration but it's evolving and the UI varies.
 <br><br>
 <b>Our recommendation:</b> use <b>Claude Desktop</b> (free, rock-solid) or <b>ChatGPT Plus</b> (\$20/mo, very reliable) instead. When Gemini adds OpenAPI support, this guide will be updated.
-"""
+""".toString()
     }
 
     section("Step 3: Copy this URL (for when you need it)") {
@@ -369,7 +373,7 @@ private String buildBigCopyBox(String url) {
 """.toString()
 }
 
-private oauthRequiredPage() {
+private Map oauthRequiredPage() {
     Integer appTypeId = app.getAppTypeId() ?: 0
     String editorUrl = "/app/editor/${appTypeId}"
 
@@ -424,17 +428,6 @@ private String getCloudBaseUrl() {
     } catch (e) {
         return null
     }
-}
-
-private String buildUrlPanel(String label, String value, String subtitle = null) {
-    String sub = subtitle ? "<div style='color:#666;font-size:12px;margin-bottom:4px'>${subtitle}</div>" : ""
-    return """
-<div style='background:#f8f9fa;border:1px solid #dee2e6;border-radius:4px;padding:10px;margin-bottom:8px'>
-  <b>${label}</b>
-  ${sub}
-  <code style='display:block;word-break:break-all;background:#fff;padding:6px;border-radius:3px;border:1px solid #e9ecef;font-size:11px'>${value}</code>
-</div>
-""".toString()
 }
 
 def installed() { initialize() }
@@ -494,7 +487,8 @@ def handleMcp() {
     Map req = (request.JSON ?: [:]) as Map
     if (settings.logging) log.debug "MCP: ${req}"
 
-    Map response = handleJsonRpc(req) { handler, args -> invokeTool(handler, args) }
+    boolean adminEnabled = (settings.adminToolsEnabled ?: false) as boolean
+    Map response = handleJsonRpc(req, adminEnabled) { handler, args -> invokeTool(handler, args) }
     if (response == null) {
         render contentType: "application/json", data: "", status: 204
         return
@@ -505,7 +499,8 @@ def handleMcp() {
 def handleOpenApi() {
     String localUrl = getBaseUrl()
     String cloudUrl = getCloudBaseUrl()
-    Map spec = generateOpenApiSpec(cloudUrl, localUrl, "AI Bridge - MCP Server")
+    boolean adminEnabled = (settings.adminToolsEnabled ?: false) as boolean
+    Map spec = generateOpenApiSpec(cloudUrl, localUrl, "AI Bridge - MCP Server", adminEnabled)
     render contentType: "application/json", data: JsonOutput.toJson(spec), status: 200
 }
 
@@ -582,7 +577,7 @@ def toolSendDeviceCommand(args) {
             dev."${cmd}"(*coerced)
         }
         return [success: true, deviceId: dev.id, command: cmd, values: coerced]
-    } catch (Throwable t) {
+    } catch (Exception t) {
         return errorMap("Command failed: ${t.message}")
     }
 }
@@ -613,9 +608,18 @@ def toolSetMode(args) {
 }
 
 def toolGetHsmStatus(args) { return [hsmStatus: location.hsmStatus] }
+
+private static final List HSM_ARM_STATES = [
+    "armAway", "armHome", "armNight", "disarm",
+    "disarmAll", "armRules", "disarmRules", "cancelAlerts"
+]
+
 def toolSetHsm(args) {
     String s = args.status
     if (!s) return errorMap("status is required")
+    if (!HSM_ARM_STATES.contains(s)) {
+        return errorMap("Invalid HSM status '${s}'. Valid: ${HSM_ARM_STATES.join(', ')}")
+    }
     sendLocationEvent(name: "hsmSetArm", value: s)
     return [success: true, requested: s]
 }
@@ -676,15 +680,16 @@ def toolGetZwaveDetails(args) { return fetchHubJson("/hub/zwaveDetails/json") }
 
 def toolListInstalledApps(args) { return fetchHubJson("/installedapp/list/data") }
 def toolGetInstalledAppStatus(args) {
-    if (!args.appId) return errorMap("appId is required")
-    return fetchHubJson("/installedapp/statusJson/${args.appId}")
+    Long id = parseLongArg(args.appId)
+    if (id == null) return errorMap("appId is required (integer)")
+    return fetchHubJson("/installedapp/statusJson/${id}")
 }
 
 def toolGetLogs(args) {
     String path = "/logs/past/json"
     List qs = []
-    if (args.sourceType && args.sourceType != "all") qs << "type=${args.sourceType}"
-    if (args.sourceId) qs << "id=${args.sourceId}"
+    if (args.sourceType && args.sourceType != "all") qs << "type=${urlEncode(args.sourceType)}"
+    if (args.sourceId) qs << "id=${urlEncode(args.sourceId)}"
     if (qs) path += "?" + qs.join("&")
     return fetchHubJson(path)
 }
@@ -696,12 +701,14 @@ def toolListLocalBackups(args) { return fetchHubJson("/hub2/localBackups") }
 def toolListDrivers(args) { return fetchHubJson("/driver/list/data") }
 def toolListAppTypes(args) { return fetchHubJson("/app/list/data") }
 def toolGetAppSource(args) {
-    if (!args.appId) return errorMap("appId is required")
-    return fetchHubJson("/app/ajax/code?id=${args.appId}")
+    Long id = parseLongArg(args.appId)
+    if (id == null) return errorMap("appId is required (integer)")
+    return fetchHubJson("/app/ajax/code?id=${id}")
 }
 def toolGetDriverSource(args) {
-    if (!args.driverId) return errorMap("driverId is required")
-    return fetchHubJson("/driver/ajax/code?id=${args.driverId}")
+    Long id = parseLongArg(args.driverId)
+    if (id == null) return errorMap("driverId is required (integer)")
+    return fetchHubJson("/driver/ajax/code?id=${id}")
 }
 
 // ---------------------------------------------------------------------------
@@ -728,22 +735,33 @@ def apiGetHsm()           { renderJson(toolGetHsmStatus([:])) }
 def apiSetHsm()           { renderJson(toolSetHsm(status: params.status)) }
 def apiListRooms()        { renderJson(toolListRooms([:])) }
 def apiListRoomsWithDevices(){ renderJson(toolListRoomsWithDevices([:])) }
-def apiListHubVariables() { renderJson(toolListHubVariables([:])) }
-def apiGetHubVariable()   { renderJson(toolGetHubVariable(name: params.name)) }
+def apiListHubVariables() { if (!requireAdmin()) return; renderJson(toolListHubVariables([:])) }
+def apiGetHubVariable()   { if (!requireAdmin()) return; renderJson(toolGetHubVariable(name: params.name)) }
 def apiSetHubVariable()   {
+    if (!requireAdmin()) return
     Map body = (request.JSON ?: [:]) as Map
     renderJson(toolSetHubVariable(name: params.name, value: body.value))
 }
 def apiGetLocation()      { renderJson(toolGetLocation([:])) }
-def apiZigbeeDetails()    { renderJson(toolGetZigbeeDetails([:])) }
-def apiZigbeeTopology()   { renderJson(toolGetZigbeeTopology([:])) }
-def apiZwaveDetails()     { renderJson(toolGetZwaveDetails([:])) }
-def apiListApps()         { renderJson(toolListInstalledApps([:])) }
-def apiGetApp()           { renderJson(toolGetInstalledAppStatus(appId: params.appId as Long)) }
-def apiGetLogs()          { renderJson(toolGetLogs(sourceType: params.sourceType, sourceId: params.sourceId)) }
-def apiGetDeviceStats()   { renderJson(toolGetDeviceStatistics([:])) }
-def apiNetwork()          { renderJson(toolGetNetworkConfig([:])) }
-def apiListDrivers()      { renderJson(toolListDrivers([:])) }
+def apiZigbeeDetails()    { if (!requireAdmin()) return; renderJson(toolGetZigbeeDetails([:])) }
+def apiZigbeeTopology()   { if (!requireAdmin()) return; renderJson(toolGetZigbeeTopology([:])) }
+def apiZwaveDetails()     { if (!requireAdmin()) return; renderJson(toolGetZwaveDetails([:])) }
+def apiListApps()         { if (!requireAdmin()) return; renderJson(toolListInstalledApps([:])) }
+def apiGetApp()           { if (!requireAdmin()) return; renderJson(toolGetInstalledAppStatus(appId: params.appId as Long)) }
+def apiGetLogs()          { if (!requireAdmin()) return; renderJson(toolGetLogs(sourceType: params.sourceType, sourceId: params.sourceId)) }
+def apiGetDeviceStats()   { if (!requireAdmin()) return; renderJson(toolGetDeviceStatistics([:])) }
+def apiNetwork()          { if (!requireAdmin()) return; renderJson(toolGetNetworkConfig([:])) }
+def apiListDrivers()      { if (!requireAdmin()) return; renderJson(toolListDrivers([:])) }
+
+// Admin gate for REST endpoints. Mirrors the MCP `tools/call` admin check.
+// Returns true if the caller is allowed; false (and renders 403) if not.
+private boolean requireAdmin() {
+    if (settings.adminToolsEnabled) return true
+    render contentType: "application/json", status: 403,
+        data: JsonOutput.toJson([error: true,
+            message: "Administrative tools are disabled. Enable 'Allow administrative tools' in the AI Bridge app preferences."])
+    return false
+}
 
 private void renderJson(data) {
     render contentType: "application/json", data: JsonOutput.toJson(data), status: 200
@@ -802,7 +820,8 @@ private List allowedDevices() {
 
 private findDevice(id) {
     if (id == null) return null
-    Long wanted = id as Long
+    Long wanted = parseLongArg(id)
+    if (wanted == null) return null
     return allowedDevices().find { it.id as Long == wanted }
 }
 
@@ -852,10 +871,22 @@ private Map collectHubStatus() {
     ]
 }
 
-private Number safeGetNum(Closure c) {
-    try { def v = c(); return v == null ? null : (v as Number) } catch (e) { return null }
-}
-
 private Map errorMap(String msg) {
     return [error: true, message: msg]
+}
+
+// URL-encode a value for safe interpolation into a hub loopback path/query.
+private String urlEncode(value) {
+    if (value == null) return ""
+    return java.net.URLEncoder.encode(value.toString(), "UTF-8")
+}
+
+// Parse an arg into a Long, returning null on missing or non-numeric input.
+// Use for any arg that gets interpolated into a hub path or used as a device ID.
+private Long parseLongArg(value) {
+    if (value == null) return null
+    if (value instanceof Number) return value.longValue()
+    String s = value.toString().trim()
+    if (!s) return null
+    try { return s.toLong() } catch (Exception e) { return null }
 }

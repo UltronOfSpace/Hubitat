@@ -1,13 +1,15 @@
-# AI Bridge - MCP Server
+# AI Bridge — MCP Server
 
-A native Hubitat app that lets **any AI assistant** — Claude Desktop, ChatGPT Custom GPTs, Grok, Gemini, Cursor, and more — control your Hubitat hub directly. No external server, no computer running 24/7, no cloud service. Just one app on your hub.
+## Alright, What's the Deal?
+
+Alright boys, this here's a native Hubitat app that lets **any AI buddy** — Claude Desktop, ChatGPT Custom GPTs, Grok, Gemini, Cursor, whoever — boss your hub around directly. No external server, no spare computer burnin' electricity 24/7, no cloud service. One app on your hub and you're rollin'.
 
 Exposes **two protocols** from a single install:
 
 - **MCP (Model Context Protocol)** — for Claude Desktop, Cursor, and other MCP-native clients
 - **OpenAPI 3.1.0 spec** — for ChatGPT Custom GPTs, Grok Actions, Gemini extensions
 
-Both are served over your hub's local network (and optionally the Hubitat cloud endpoint) using the hub's built-in OAuth token authentication.
+Both served over your hub's local network (and optionally the Hubitat cloud endpoint) usin' the hub's built-in OAuth token authentication. Straight from the void.
 
 ---
 
@@ -32,16 +34,16 @@ Both are served over your hub's local network (and optionally the Hubitat cloud 
 ## Configure
 
 1. Pick the devices the AI should see and control (same pattern as Maker API).
-2. Save. The app page will show two sets of URLs:
+2. Save. The app page shows two sets of URLs:
    - **🏠 Local URLs** — use from the same Wi-Fi as your hub (computer, phone on home network)
    - **☁️ Cloud URLs** — use from cloud-based AI apps (ChatGPT iPhone, Grok, Gemini). These go through Hubitat's **free** cloud relay.
 3. Plus the access token (only needed if your client asks for it separately).
 
 ### Do I need a subscription?
 
-**No.** The cloud relay URLs (`https://cloud.hubitat.com/api/...`) are free and built into every registered Hubitat hub. This is the same mechanism Maker API uses. You **don't need** Hub Protect ($30/year) — that covers cloud backups, which are separate.
+**Nope.** The cloud relay URLs (`https://cloud.hubitat.com/api/...`) are free and baked into every registered Hubitat hub. Same mechanism Maker API uses. You **don't need** Hub Protect ($30/year) — that covers cloud backups, which is a different thing.
 
-If your hub isn't registered yet: **Settings → Hub Details → Register Hub** (free, one-time).
+If your hub ain't registered yet: **Settings → Hub Details → Register Hub** (free, one-time).
 
 ---
 
@@ -76,7 +78,7 @@ Restart Claude. Try: *"What devices do I have?"* or *"Turn on the kitchen light.
    - Auth type: **Custom** (query parameter)
    - Parameter name: `access_token`
    - Value: the access token from your hub
-5. Save the GPT. The action persists forever — every future chat with that GPT can control your hub.
+5. Save the GPT. The action sticks around forever — every future chat with that GPT can control your hub.
 
 ### Grok
 
@@ -123,8 +125,8 @@ Use Gemini Extension / custom tool. Paste the OpenAPI URL with the same access t
 
 ### Pro tips
 
-- The AI refers to your devices by their **labels** — whatever you named them in Hubitat. So "kitchen light" works if that's what you called it.
-- **Room awareness comes from Hubitat's room assignments.** Organize devices into rooms in your hub UI for better natural language control.
+- The AI refers to your devices by their **labels** — whatever you named 'em in Hubitat. So "kitchen light" works if that's what you called it.
+- **Room awareness comes from Hubitat's room assignments.** Organize devices into rooms in your hub UI for better natural-language control.
 - The AI can chain commands: *"Set the house to bedtime — turn off everything, lock all doors, and set mode to Night"*
 - You can ask it to verify: *"Turn off the TV and confirm it's off"*
 
@@ -141,7 +143,7 @@ Use Gemini Extension / custom tool. Paste the OpenAPI URL with the same access t
 - **Zigbee / Z-Wave** — radio details, mesh topology
 - **Apps & drivers** — list, inspect
 
-Destructive operations (reboot, delete, disable radios, firmware update) are **not exposed** — the AI is sandboxed to safe operations only.
+Destructive operations (reboot, delete, disable radios, firmware update) are **not exposed** — the AI is sandboxed to safe operations only. Learned that one the hard way, boys. Lipstick on a possum ain't gonna save your hub from a reboot it didn't ask for.
 
 ---
 
@@ -150,11 +152,15 @@ Destructive operations (reboot, delete, disable radios, firmware update) are **n
 - Every request requires the OAuth `access_token` — no unauthenticated access.
 - Only devices you explicitly picked in the app's configuration page are visible.
 - Destructive hub operations are never exposed as tools.
-- Uninstalling the app revokes the token.
+- Uninstallin' the app revokes the token.
 
 For remote (cloud) access, use the hub's cloud endpoint URL in place of the local one, or use a tunnel like `mcp-remote`.
 
 ---
+
+## Big Love to My AI Buddies
+
+This whole thing's a collab with my AI sidekicks — Claude from Anthropic did the heavy liftin' on the Groovy side, Grok pitched in early. Like havin' buddies who know every dang thing and ain't smug about it.
 
 ## Credits
 
@@ -164,3 +170,7 @@ For remote (cloud) access, use the hub's cloud endpoint URL in place of the loca
 ## License
 
 MIT
+
+---
+
+*Boss your hub with your mouth, boys — stellar when it's workin'!*

@@ -6,6 +6,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Hubitat tile dashboard — a standalone, vanilla JavaScript SPA with a HomeKit-style neumorphic UI for controlling smart home devices via the Hubitat Maker API. No build tools, no frameworks, no package manager. Served from Hubitat's File Manager (`http://<hub-ip>/local/dashboard.html`) or any web server.
 
+## Persona — UltronOfSpace voice (scoped)
+
+The parent Hubitat repo uses the **UltronOfSpace** persona for public-facing writing. This sub-project applies it on a **scoped** basis — the codebase enforces NASA Power of 10 + code style via `/review` and `/ship`, which would conflict with voice-in-code.
+
+**Full style guide:** [`../.claude/PERSONA.md`](../.claude/PERSONA.md)
+
+**Scope for this sub-project:**
+- **Voiced (10/10):** `README.md` when present — full Ultron voice, same rules as the main repo README
+- **Small cameo (2/10):** Settings/About modal in the dashboard UI — persona nod only (e.g., credit line *"Built by Ultronumus Of Space — may he nap in peace"* or a version-string flavor line), never in operational UI strings
+- **Neutral (0/10):** this CLAUDE.md, code, comments, variable names, dashboard UI strings (tile labels, error messages, settings panel copy), `manifest.json` display name
+
+**One-line rule:** Ultron lives on the front porch (README + Settings cameo), not inside the house (code, UI, engineering docs).
+
 ## Architecture
 
 **Five layers:**

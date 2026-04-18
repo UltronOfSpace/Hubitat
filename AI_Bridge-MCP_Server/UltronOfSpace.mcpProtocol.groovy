@@ -17,6 +17,7 @@ library(
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import groovy.transform.Field
 
 // ---------------------------------------------------------------------------
 // Tool registry
@@ -28,9 +29,15 @@ import groovy.json.JsonSlurper
 //   inputSchema  - JSON Schema for arguments (MCP tools/list)
 //   openApi      - OpenAPI path/method/params (or null for MCP-only)
 //   handler      - method name on the app to invoke
+//   admin        - true for hub-wide tools (apps, drivers, variables, logs,
+//                  network, radios). Gated by the user's "Allow administrative
+//                  tools" preference; default off.
+
+@Field static List _toolRegistryCache = null
 
 def getToolRegistry() {
-    return [
+    if (_toolRegistryCache != null) return _toolRegistryCache
+    _toolRegistryCache = [
         // ---- Hub info ----
         [name: "get_hub_details", description: "Hub identity: name, firmware, model, MAC, location.",
          inputSchema: emptyObjSchema(),
@@ -143,7 +150,9 @@ def getToolRegistry() {
         [name: "set_hsm",
          description: "Set HSM: armAway, armHome, armNight, disarm, disarmAll, armRules, disarmRules, cancelAlerts.",
          inputSchema: objSchema([
-             status: [type: "string", description: "HSM arm state"]
+             status: [type: "string", description: "HSM arm state",
+                      enum: ["armAway", "armHome", "armNight", "disarm",
+                             "disarmAll", "armRules", "disarmRules", "cancelAlerts"]]
          ], ["status"]),
          openApi: [path: "/api/hsm/{status}", method: "post",
                    pathParams: [[name: "status", type: "string"]]],
@@ -161,10 +170,11 @@ def getToolRegistry() {
          openApi: [path: "/api/rooms/devices", method: "get"],
          handler: "toolListRoomsWithDevices"],
 
-        // ---- Hub variables ----
+        // ---- Hub variables (admin: writes affect other automations) ----
         [name: "list_hub_variables", description: "All hub variables and values.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/variables", method: "get"],
+         admin: true,
          handler: "toolListHubVariables"],
 
         [name: "get_hub_variable",
@@ -174,6 +184,7 @@ def getToolRegistry() {
          ], ["name"]),
          openApi: [path: "/api/variables/{name}", method: "get",
                    pathParams: [[name: "name", type: "string"]]],
+         admin: true,
          handler: "toolGetHubVariable"],
 
         [name: "set_hub_variable",
@@ -189,6 +200,7 @@ def getToolRegistry() {
                      properties: [value: [type: "string"]],
                      required: ["value"]
                    ]],
+         admin: true,
          handler: "toolSetHubVariable"],
 
         // ---- Location ----
@@ -198,30 +210,34 @@ def getToolRegistry() {
          openApi: [path: "/api/location", method: "get"],
          handler: "toolGetLocation"],
 
-        // ---- Zigbee ----
+        // ---- Zigbee (admin: radio internals) ----
         [name: "get_zigbee_details",
          description: "Zigbee radio details: channel, PAN ID, network state, device list.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/zigbee", method: "get"],
+         admin: true,
          handler: "toolGetZigbeeDetails"],
 
         [name: "get_zigbee_topology",
          description: "Zigbee mesh topology: children, neighbors with LQI, routes.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/zigbee/topology", method: "get"],
+         admin: true,
          handler: "toolGetZigbeeTopology"],
 
-        // ---- Z-Wave ----
+        // ---- Z-Wave (admin: radio internals) ----
         [name: "get_zwave_details",
          description: "Z-Wave radio details and device nodes.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/zwave", method: "get"],
+         admin: true,
          handler: "toolGetZwaveDetails"],
 
-        // ---- Apps ----
+        // ---- Apps (admin: app settings often contain credentials) ----
         [name: "list_installed_apps", description: "All installed app instances.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/apps", method: "get"],
+         admin: true,
          handler: "toolListInstalledApps"],
 
         [name: "get_installed_app_status",
@@ -231,9 +247,10 @@ def getToolRegistry() {
          ], ["appId"]),
          openApi: [path: "/api/apps/{appId}", method: "get",
                    pathParams: [[name: "appId", type: "integer"]]],
+         admin: true,
          handler: "toolGetInstalledAppStatus"],
 
-        // ---- Logs ----
+        // ---- Logs (admin: hub-wide log content) ----
         [name: "get_logs",
          description: "Past log entries, optionally filtered by source type and ID.",
          inputSchema: objSchema([
@@ -243,51 +260,59 @@ def getToolRegistry() {
          openApi: [path: "/api/logs", method: "get",
                    queryParams: [[name: "sourceType", type: "string", required: false],
                                  [name: "sourceId", type: "integer", required: false]]],
+         admin: true,
          handler: "toolGetLogs"],
 
         [name: "get_device_statistics",
          description: "Device event statistics: counts, state sizes, uptime.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/logs/stats", method: "get"],
+         admin: true,
          handler: "toolGetDeviceStatistics"],
 
         [name: "get_hub_events",
          description: "Hub-level events (system start, etc).",
          inputSchema: emptyObjSchema(),
          openApi: null, // MCP-only (less commonly needed)
+         admin: true,
          handler: "toolGetHubEvents"],
 
-        // ---- Network ----
+        // ---- Network (admin: hub internals) ----
         [name: "get_network_config",
          description: "Network: IP, gateway, DNS, WiFi, LAN settings.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/network", method: "get"],
+         admin: true,
          handler: "toolGetNetworkConfig"],
 
-        // ---- Dashboards / backups ----
+        // ---- Dashboards / backups (admin: hub-wide) ----
         [name: "list_dashboards",
          description: "Legacy dashboards.",
          inputSchema: emptyObjSchema(),
          openApi: null, // MCP-only
+         admin: true,
          handler: "toolListDashboards"],
 
         [name: "list_local_backups",
          description: "Local backup files with version, size, creation time.",
          inputSchema: emptyObjSchema(),
          openApi: null, // MCP-only
+         admin: true,
          handler: "toolListLocalBackups"],
 
-        // ---- Drivers / code ----
+        // ---- Drivers / code (admin: source may contain credentials) ----
         [name: "list_drivers",
          description: "All installed drivers with capabilities.",
          inputSchema: emptyObjSchema(),
          openApi: [path: "/api/drivers", method: "get"],
+         admin: true,
          handler: "toolListDrivers"],
 
         [name: "list_app_types",
          description: "All app types (system + user).",
          inputSchema: emptyObjSchema(),
          openApi: null, // MCP-only
+         admin: true,
          handler: "toolListAppTypes"],
 
         [name: "get_app_source",
@@ -296,6 +321,7 @@ def getToolRegistry() {
              appId: [type: "integer", description: "App type ID"]
          ], ["appId"]),
          openApi: null, // MCP-only
+         admin: true,
          handler: "toolGetAppSource"],
 
         [name: "get_driver_source",
@@ -304,8 +330,10 @@ def getToolRegistry() {
              driverId: [type: "integer", description: "Driver type ID"]
          ], ["driverId"]),
          openApi: null, // MCP-only
+         admin: true,
          handler: "toolGetDriverSource"],
     ]
+    return _toolRegistryCache
 }
 
 // ---------------------------------------------------------------------------
@@ -327,9 +355,11 @@ def objSchema(Map properties, List required) {
 // ---------------------------------------------------------------------------
 //
 // Call from app's POST /mcp handler. Delegates tool/call to the app via
-// callers passing a closure/method reference.
+// callers passing a closure/method reference. `adminEnabled` controls whether
+// hub-wide admin tools (apps, drivers, variables, logs, network, radios) are
+// exposed in tools/list and callable via tools/call.
 
-def handleJsonRpc(Map req, Closure invokeTool) {
+def handleJsonRpc(Map req, boolean adminEnabled, Closure invokeTool) {
     String method = req?.method
     def id = req?.id
 
@@ -353,9 +383,11 @@ def handleJsonRpc(Map req, Closure invokeTool) {
             return rpcResult(id, [:])
 
         case "tools/list":
-            def tools = getToolRegistry().collect { t ->
-                [name: t.name, description: t.description, inputSchema: t.inputSchema]
-            }
+            def tools = getToolRegistry()
+                .findAll { adminEnabled || !it.admin }
+                .collect { t ->
+                    [name: t.name, description: t.description, inputSchema: t.inputSchema]
+                }
             return rpcResult(id, [tools: tools])
 
         case "tools/call":
@@ -365,11 +397,15 @@ def handleJsonRpc(Map req, Closure invokeTool) {
             if (!descriptor) {
                 return rpcError(id, -32602, "Unknown tool: ${toolName}")
             }
+            if (descriptor.admin && !adminEnabled) {
+                return rpcError(id, -32601,
+                    "Tool '${toolName}' is an administrative tool. Enable 'Allow administrative tools' in the AI Bridge app preferences to use it.")
+            }
             try {
                 def result = invokeTool(descriptor.handler, args)
                 String text = (result instanceof String) ? result : JsonOutput.toJson(result)
                 return rpcResult(id, [content: [[type: "text", text: text]]])
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 return rpcError(id, -32603, "Tool error: ${t.message}")
             }
 
@@ -390,15 +426,17 @@ def rpcError(id, int code, String message) {
 // OpenAPI 3.1.0 generator
 // ---------------------------------------------------------------------------
 
-def generateOpenApiSpec(String cloudUrl, String localUrl, String appTitle) {
+def generateOpenApiSpec(String cloudUrl, String localUrl, String appTitle, boolean adminEnabled) {
     Map paths = [:]
-    getToolRegistry().findAll { it.openApi != null }.each { t ->
-        Map oa = t.openApi
-        String p = oa.path
-        String m = oa.method
-        if (!paths[p]) paths[p] = [:]
-        paths[p][m] = buildOperation(t, oa)
-    }
+    getToolRegistry()
+        .findAll { it.openApi != null && (adminEnabled || !it.admin) }
+        .each { t ->
+            Map oa = t.openApi
+            String p = oa.path
+            String m = oa.method
+            if (!paths[p]) paths[p] = [:]
+            paths[p][m] = buildOperation(t, oa)
+        }
 
     // Prefer cloud URL for cloud-based AI clients (ChatGPT, Grok, Gemini).
     // Include local URL as a fallback server for LAN-only use.

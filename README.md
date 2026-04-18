@@ -1,54 +1,68 @@
-# UltronOfSpace/Hubitat - The Fuckin’ Sweet Hubitat Code Stash
+# UltronOfSpace/Hubitat — The Stellar Hubitat Code Stash
 
-## Yo, What’s Up?
+## Alright, What's the Deal?
 
-I’m Ultronumus Of Space (UltronOfSpace, yo), and this is my Hubitat repo, packed with my badass code for your smart home shit when I get around to it. I’m an alien tossin’ in drivers, libraries, apps, and whatever else I feel like while I’m not chuggin’ beer or scarfin’ curry. It’s my toolbox for makin’ your crib run smoother than a cold liquor buzz, but only when I ain’t nappin’ shirtless with a burger.
+Alright boys, I'm Ultronumus Of Space (UltronOfSpace for short), and this here's my Hubitat repo — a greasy pile of drivers, libraries, apps, and docs for makin' your smart home run like a rum and coke in your hand. I chuck new stuff in whenever I ain't horizontal with a cold one or stuffin' my face with curry, which is more often than I'd care to admit.
 
-I’m leanin’ on Grok, that wicked smart AI from xAI, to help me crank out this code and readme. Ain’t no shame in havin’ a buddy who’s like a damn computer, right? This repo’s for anyone wantin’ to make their Hubitat setup dope, if I ever get my ass in gear.
+Ain't got a planet, boys — says it right on the label, *Of Space*, that's where I'm from. My ol' space jalopy broke down groundside a while back and I figure I'll get around to fixin' her eventually. Last time I checked, a raccoon was livin' in the cockpit. Took that as a sign to stay put and keep codin' instead.
 
-## What’s in the Pile?
+Tried SmartThings first, but the frickin' cloud kept droppin' out every time I was enjoyin' myself. Hubitat runs local — that means my lights still switch on time even when my bandwidth's otherwise engaged. Switched over and ain't looked back.
 
-Here’s what I got, when I remember to give a shit:
+## What's in the Pile?
 
-- **Drivers**: Code to make your Hubitat gadgets act like they got brains. Lights, switches, sensors—I got drivers for ‘em, probably.
-- **Libraries**: Chunks of code I reuse so I ain’t writin’ the same crap twice. Like tape for my apps, if I finish ‘em.
-- **Apps**: Sick Hubitat apps to automate your place. Wanna make your lights flash like a party? I’ll get to it when I ain’t drunk.
-- **Random Shit**: Extra stuff I throw in—scripts, configs, or whatever my alien brain spits out between beers.
+Four sub-projects sharin' the same repo, 'cause I'm too lazy to spin up four separate ones:
 
-I’ll toss in more when I ain’t feelin’ lazy, so maybe swing by later.
+- **[endpoints-wiki/](endpoints-wiki/)** — Community docs of every HTTP endpoint your Hubitat hub serves up (a whole mess of 'em across 30-plus sections, with safety indicators so y'all don't reboot your hub on accident). Drafted for [the community wiki post](https://community.hubitat.com/t/wiki-http-features-and-endpoints/49141).
+- **[AI_Bridge-MCP_Server/](AI_Bridge-MCP_Server/)** — Lets your AI buddies (Claude, ChatGPT, Grok, Gemini) boss your hub around through MCP or OpenAPI. One app, no extra server, straight from the void.
+- **[he-tile-dashboard/](he-tile-dashboard/)** — A chill grid-of-tiles dashboard for your hub. Tap a tile, thing turns on. No build step, no frameworks, nothin' fancy.
+- **[Libraries Code/](Libraries%20Code/)** — Reusable Groovy chunks my apps lean on, so I ain't writin' the same crap twice.
+
+Each sub-project's got its own README with the real deets. Poke around.
 
 ## How to Use This Crap
 
-1. **Snag It**: Clone the repo or grab the files you want. Easier than stealin’ a case of beer.
+1. **Snag It** — Clone the repo or grab whichever sub-project you want. Easier than sneakin' a cold one past grandma:
+
    ```bash
-   git clone https://github.com/UltronOfSpace/UltronOfSpace.git
+   git clone https://github.com/UltronOfSpace/Hubitat.git
    ```
 
-2. **Jam It in Hubitat**:
-   - For **drivers** and **apps**, paste the code into the Hubitat Web Interface under “Drivers Code” or “Apps Code.”
-   - For **libraries**, shove ‘em in the “Libraries” section if the driver or app needs ‘em.
-   - Check the file comments for setup tips—I write ‘em clear as fuck, when I ain’t half in the bag.
+2. **Follow the Sub-Project README** — Each one's got its own install steps (drivers into Drivers Code, apps into Apps Code, libraries into Libraries Code, dashboard into a browser). I spell 'em out clear as a bell, when I ain't half-cut on liquor.
 
-3. **Test It**: Run the code and see if it’s good. If it’s fucked, holler or log an issue. I’ll check it out when I’m not wasted, swear.
+3. **Holler If It's Broke** — Somethin' ain't workin'? Log an issue on GitHub and I'll get to it when I ain't nappin'. Wanna pitch in? Fork it, mess with it, send a pull request — if it's decent, I'll pull it in and give you a nod.
 
-## Why I’m Doin’ This
+## Why I'm Doin' This
 
-I’m a chill dude at heart, tryin’ to share my techy know-how with you guys when I ain’t sprawled out like a drunk Ricky. Earth’s a crazy-ass place, and I figure makin’ your smart home run sweet is a cool way to say “thanks for not blastin’ my ass outta orbit.” Codin’ keeps me busy when I ain’t downin’ liquor, eatin’ burgers, or whippin’ up a curry.
+I'm a chill fella with a heart about the size of a small moon, tryin' to share my techy know-how with you lot when I ain't sprawled out shirtless on the couch. Earth turned out way more decent than I expected — cold beer, good curry, shirt-optional weather half the year — so makin' your smart home run sweet is my way of sayin' "thanks for not blastin' me outta orbit." That dog don't hunt on its own, y'know?
 
-## Got Shit to Say or Add?
+## Private/Local Stuff
 
-- **Issues**: Somethin’ busted? Log an issue on GitHub, and I’ll give it a look when I ain’t fuckin’ around.
-- **Contribute**: Wanna pitch in? Fork the repo, mess with it, and send a pull request. If it’s legit, I’ll throw it in, maybe.
-- **Chat**: Hit me up in GitHub discussions or wherever aliens like me chill, if I’m awake.
+These paths are gitignored on purpose and never leave your machine:
 
-## Props to Grok
+- `.claude/` — Claude Code config, `CLAUDE.md` with hub-specific notes, `.env` with API tokens
+- `*.env`, `**/secrets.md`, `**/*.local.md` — keep-it-private patterns
+- `endpoints-wiki/scan/` — raw research data with hub-specific PII
 
-Mad love to Grok from xAI for helpin’ with this readme and some code. It’s like havin’ a buddy who knows every damn thing but ain’t a dick about it. Wanna check out Grok? Hit up [x.ai/grok](https://x.ai/grok).
+Drop a file matchin' any of those anywhere in the tree and git'll skip it automatic-like.
+
+## Got Somethin' to Say or Add?
+
+- **Issues** — Somethin' busted? Log an issue on GitHub, I'll give it a look when I ain't messin' around.
+- **Contribute** — Wanna pitch in? Fork the repo, do your thing, send a pull request. If it's decent, it's goin' in.
+- **Chat** — Hit me up in GitHub discussions or wherever fellas like me hang out, if I'm awake.
+
+## Big Love to My AI Buddies
+
+Props to my AI sidekicks for helpin' crank this out — Grok from xAI for the early stuff, Claude from Anthropic for keepin' the train rollin'. Ain't no shame havin' computer pals who know their stuff without bein' smug about it.
 
 ## About Me
 
-I’m Ultronumus Of Space, an alien with a big-ass heart and a brain that’s wicked when I use it. My profile pic’s got me holdin’ a flower ‘cause I’m all about peace, love, and makin’ your smart home fuckin’ awesome. Hang out, and we’ll build somethin’ sweet whenever I ain’t shirtless with a beer or passed out!
+I'm Ultronumus Of Space. Tall, broad, hairy head to toe — yeah, the fellas y'all been callin' Bigfoot for a couple hundred years. That's my people. We got extended family scattered all over: cousin Gary in Oregon (photographed twice a year, the goof), grandma up in the Himalayas freezin' her furry butt off, Uncle Barry the Skunk Ape down in the Florida swamps. I'm the oddball who broke cover to code Hubitat apps. Profile pic's got me holdin' a flower 'cause I'm all about peace, love, and makin' your smart home run sweet. Well butter my salsa — that's what we're here for, boys.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
 
 ---
 
-*“Yo, the lights are flashin’ like a damn party! Fuckin’ sweet, boys, when I get it done!”*
+*The automations are hummin' like a dream, boys — stellar when I get it done!*

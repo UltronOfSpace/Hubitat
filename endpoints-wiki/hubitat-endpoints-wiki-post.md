@@ -191,6 +191,7 @@ All return JSON. No authentication required.
 |----------|------|-------------|
 | 🟢 `/hub/details/json` | JSON | Hub identity: name, zip, lat/long, platform version, hardware version, hubUID, MAC, mDNS name, sunrise/sunset, timezone |
 | 🟢 `/hub/list/data` | JSON | Hub hardware info: hardwareID, zigbeeEui, zigbeeChannel, zigbeePanID, localIP, localSrvPortTCP |
+| 🟢 `/hub/data` | JSON | Hub identity + network: `{id, name, version, locationId, data: {hardwareID, zigbeeEui, zigbeeChannel, zigbeePanID, localSrvPortTCP, localIP}}` — singular-object variant of `/hub/list/data` that also wraps in a top-level `{id, name, version, locationId}` envelope |
 | 🟢 `/hub/messages` | JSON | Current mode (id, name, icon), HSM status, hub alert messages |
 | 🟢 `/hub/echoDiscovery` | JSON | Amazon Echo discovery status |
 | 🟢 `/hubStatus` | JSON | Hub init status: serverInitPercentage, serverInitDetails, status |
@@ -336,6 +337,7 @@ Date/time,Free OS,5m CPU avg,Total Java,Free Java
 | Endpoint | Type | Description |
 |----------|------|-------------|
 | 🟢 `/device/list/data` | JSON | All devices: id, label, zigbeeId, deviceTypeName, status, disabled, roomAssigned, type (sys/usr) |
+| 🟢 `/device/listJson` | JSON | Returns `[]` on current firmware — legacy/vestigial endpoint. Use `/device/list/data` instead. |
 | 🟢 `/device/list/all/data` | JSON | All devices (extended variant) |
 | 🟢 `/device/json/{id}` | JSON | Device summary: displayName, driverType, zigbeeId, currentStates, deviceNetworkId |
 | 🟢 `/device/fullJson/{id}` | JSON | Rich detail: apps using device, commands with arguments, dashboardTypes, scheduledJobs |
@@ -446,7 +448,7 @@ Date/time,Free OS,5m CPU avg,Total Java,Free Java
 | Endpoint | Type | Description |
 |----------|------|-------------|
 | 🟢 `/app/list` | HTML | App code list page |
-| 🟢 `/app/list/data` | JSON | All app types: id, version, author, category, description, name, namespace, type (sys/usr) |
+| 🟢 `/app/list/data` | JSON | Parent/standalone app types only — fields: id, version, author, category, description, name, namespace, type (sys/usr), parentAppId, singleInstance, singleInstanceInstalledId. **Child apps (non-null `parentAppId`) are silently filtered out** — see notes below. |
 | 🟢 `/app/list/single/data/{id}` | JSON | Single app type data |
 | 🟢 `/app/editor/{id}` | HTML | App code editor page |
 | 🟢 `/app/create` | HTML | Create new app page |
@@ -476,9 +478,15 @@ Date/time,Free OS,5m CPU avg,Total Java,Free Java
 ```
 </details>
 
-> **`saveOrUpdateJson` — correct usage:** POST with `Content-Type: application/json`. Body is a JSON object: `{"id": null, "source": "<groovy source>", "version": 1}`. For updates, set `id` to the existing app ID. Returns `{"success": true, "id": <newId>, "version": <ver>}` on success. **Do NOT use form-urlencoded** — that returns `{"success": false, "message": "Unknown error occurred"}`. The browser UI sends this via `postJsonAndCallback()` using `JSON.stringify()`.
+> **`saveOrUpdateJson` — correct usage:** POST with `Content-Type: application/json`. Body is a JSON object: `{"id": null, "source": "<groovy source>", "version": 1}`. For updates, set `id` to the existing app ID (you can also omit the `id` key entirely for new apps — the UI does this). Returns `{"success": true, "id": <newId>, "version": <ver>}` on success. **Do NOT use form-urlencoded** — that returns `{"success": false, "message": "Unknown error occurred"}`. The browser UI sends this via `postJsonAndCallback()` using `JSON.stringify()`.
+>
+> **Groovy `definition()` requirements:** the `iconUrl` and `iconX2Url` keys **must be present** (empty strings `""` are fine, but the keys can't be missing) — the server returns `{"success": false, "message": "iconUrl,iconX2Url cannot be empty in definition section"}` if either key is absent.
+>
+> **🐛 UTF-8 BOM gotcha:** if the request body starts with a UTF-8 BOM (`EF BB BF`), the server's JSON parser silently fails and returns the generic `{"success": false, "message": "Unknown error occurred"}` — with no indication that the BOM is the cause. This masks all real errors (missing fields, Groovy compile errors, etc.). PowerShell's `Set-Content -Encoding UTF8` and `Out-File -Encoding UTF8` both add a BOM by default. Use `[System.IO.File]::WriteAllText($path, $body, (New-Object System.Text.UTF8Encoding $false))` on Windows PowerShell 5.1, or `Out-File -Encoding utf8NoBOM` on PowerShell 7+. Bash `echo >` and `cat > file << EOF` do not add a BOM. Confirmed on C-8 Pro FW 2.4.4.156 and C-4 FW 2.4.3.103.
 >
 > **Delete endpoints:** Use `/app/edit/deleteJson/{id}` for a JSON response (`{"status": true}`). `/app/deleteAppType/{id}` is a separate endpoint for deleting the app type definition.
+>
+> **`/app/list/data` hides child apps.** The endpoint silently drops any app whose `parentAppId` is not null, so child-type apps (those instantiated by a parent app's `app()` directive) never appear in the list — even though the web UI at `/app/list` shows them. The UI builds its list from `/hub2/userAppTypes` instead. Confirmed on C-8 Pro FW 2.4.4.156: the UI showed 6 user apps (2 parents + 2 children + 2 standalones), but `/app/list/data` returned only the 4 non-child rows. **Recommended workaround:** use `/hub2/userAppTypes` (see section 8) — it returns ALL user apps including children, and it's what the UI itself uses. `/app/list/single/data/{id}` and `/app/ajax/code?id={id}` also return child data once you have the ID.
 
 ---
 
@@ -513,6 +521,7 @@ Date/time,Free OS,5m CPU avg,Total Java,Free Java
 | 🟢 `/installedapp/sysAppByIdJson/{id}` | JSON | System app info by ID |
 | 🟢 `/installedapp/configure/{id}` | HTML | App configuration page |
 | 🟢 `/installedapp/configure/{id}?embed=true` | HTML | Embedded app config |
+| 🟢 `/installedapp/configure/json/{id}` | JSON | **Configure page structure as JSON (2.5.0+ only)** — requires `Accept: application/json` header. Returns `{pageBreadcrumbs, formAction, removeButton, configPage: {name, title, sections: [{input: [{description, multiple, title, ...}], ...}], install, uninstall, refreshInterval, ...}}`. Full programmatic access to the install/update form definition an app would render. Without the Accept header, returns the SPA shell. **Confirmed working on 2.5.0.118 beta; on 2.4.4.156 stable the endpoint returns the SPA shell regardless of the Accept header.** |
 | 🟢 `/installedapp/events/{id}` | HTML | App events page |
 | 🟢 `/installedapp/status/{id}` | HTML | App status page |
 | 🟢 `/installedapp/sysApp/{appName}` | HTML | System app shortcut (URL-encoded name) |
@@ -556,11 +565,13 @@ The `hub2/` endpoints power the modern Hubitat web interface. They return rich J
 | 🟢 `/hub2/backup/json` | JSON | Backup schedule: frequency, cleanup time, cloud entitlements, password status |
 | 🟢 `/hub2/networkConfiguration` | JSON | Full network config: static IP, gateway, subnet, DNS, WiFi, LAN auto-neg, useDNSFallover, hasEthernet, hasWiFi, restartBonjourOnSchedule |
 | 🟢 `/hub2/suggestedIntegrations` | JSON | Auto-discovered integrations (Matter, HomeKit, Chromecast) with IPs |
-| 🟢 `/hub2/userAppTypes` | JSON | User-installed app types with which instances use them |
+| 🟢 `/hub2/userAppTypes` | JSON | **All user app types — parents, standalones, AND children.** Fields: id, name, namespace, oauth, lastModified, usedBy (array of installed instance `{id, name}`). This is what the modern Apps Code UI uses. Use this instead of `/app/list/data` if you need child apps in the list. |
 | 🟢 `/hub2/userDeviceTypes` | JSON | User-installed driver types with capabilities and which devices use them |
 | 🟢 `/hub2/userLibraries` | JSON | User libraries |
 | 🟢 `/hub2/userBundles` | JSON | User bundles |
 | 🟢 `/hub2/availableWiFiNetworks?reload={bool}` | JSON | Visible WiFi SSIDs |
+| 🟢 `/hub2/fetchHubHomePageBanner` | JSON | Home-page marketing feed: `{learningVideos: [{image, label, url}], whatsNew: [{image, label, url}], elevateYourH...}` — YouTube tutorial thumbnails and "what's new" cards shown on the hub's home page |
+| 🟢 `/hub2/fetchShortcuts` | JSON | Global shortcut inventory: `{devices: [{id, label}], apps: [{id, label}]}` — flat list used by the UI's global search / quick-jump picker. Returns every device and every installed app instance with its current label |
 
 <details>
 <summary><b>Sample — /hub2/devicesList (abbreviated)</b></summary>
@@ -846,6 +857,7 @@ The `hub2/` endpoints power the modern Hubitat web interface. They return rich J
 | 🔴 `/library/deleteLibrary/{id}` | GET | Delete library |
 | 🔴 `/library/edit/deleteJson/{id}` | GET | Delete library (JSON response) |
 | 🟢 `/bundle/list` | HTML | Bundle list page |
+| 🟢 `/bundle/list/json` | JSON | All bundles: `[{id, name, sourceUrl, sourcePassword, appTypeIds, deviceTypeIds, appTypeIdsUpdateOrder, deviceTypeIdsUpdateOrder, installedAppTypeIds, ...}]` — full bundle metadata including source GitHub URL, included app/driver type IDs, and update-order config |
 | 🟢 `/bundle/editor/{id}` | HTML | Bundle editor |
 | 🔴 `/bundle/create` | HTML | Create bundle page |
 | 🔴 `/bundle/deleteJson/{id}` | GET | Delete bundle |
@@ -1152,6 +1164,11 @@ On the **C-4**, `installed` is `false` and `networkState` is omitted. `/hub/matt
 | 🟢 `/hub/advanced/registeredUsersForLocalHubs` | JSON | Registered users |
 | 🟢 `/hub/advanced/getWiFiNetworkInfoAsyncStatus` | JSON | WiFi config async status |
 | 🟢 `/hub/advanced/certificate` | HTML | SSL certificate management page |
+| 🟢 `/hub/advanced/cloudInfo` | HTML | Cloud info page — serves the SPA shell; the underlying data comes from `/hub2/hubData` and related `/hub2/*` endpoints |
+| 🟢 `/hub/advanced/logSettings` | HTML | Log settings page (SPA shell) |
+| 🟢 `/hub/advanced/safetyNotifications` | HTML | Safety notifications config page (SPA shell) |
+| 🟢 `/hub/advanced/zigbeeDetails` | HTML | Zigbee advanced details page (SPA shell) — JSON data at `/hub/zigbeeDetails/json` |
+| 🟢 `/hub/advanced/zwaveDetails` | HTML | Z-Wave advanced details page (SPA shell) — JSON data at `/hub/zwaveDetails/json` |
 
 ### Action Endpoints
 
@@ -1380,6 +1397,14 @@ GET /installedapp/statusJson/{installedAppId}
 
 **Authentication errors:** Invalid or missing token returns XML: `<oauth><error>invalid_token</error></oauth>`
 
+**OAuth 2.0 authorization endpoints** (for 3rd-party OAuth-based integrations — used when an app sets `oauth` enabled in `/app/updateOAuth`):
+
+| Endpoint | Type | Description |
+|----------|------|-------------|
+| 🟢 `/oauth/authorize` | GET | OAuth 2.0 authorize endpoint at the hub root. Empty body without `response_type`, `client_id`, and `redirect_uri` query params. Start of the OAuth consent flow. |
+| 🟢 `/apps/api/oauth/authorize` | GET | Same authorize endpoint under the Maker-API path prefix. Empty body without required OAuth params. |
+| 🟢 `/oauth/null` | HTML | SPA shell served when `redirect_uri` is missing or invalid — fallback error page for malformed OAuth redirects. |
+
 **Settings (from `/installedapp/statusJson`):** `pickedDevices` (device list), `localAccess` (bool), `cloudAccess` (bool), `allowModes` (bool), `allowHSM` (bool), `postURL` (text), `corsHosts` (text), `logging` (bool)
 
 ### Device Endpoints
@@ -1482,6 +1507,8 @@ Auth uses the hub's MAC address (uppercase, no colons):
 | 🟢 `:8081/` | HTML | Diagnostic landing page (Vue SPA) |
 | 🟢 `:8081/api/latestBackupFileInProgress` | Text | Returns `true`/`false` — whether a backup is currently being created |
 | 🟢 `:8081/api/downloadLatestBackup` | File | **Downloads the latest hub backup** (LZF format, ~400KB). No authentication! |
+| 🟢 `:8081/hubStartStatus` | GET → JSON | Hub startup progress — `{"inProgress": false, "success": true, "message": ""}`. The Vue update-tool polls this during a boot/restart to know when the main app (port 80) is ready. |
+| 🟢 `:8081/setupStatus` | GET → JSON | First-boot setup progress — `{"inProgress": false, "success": false, "message": "Unknown status, please try again"}` on a running hub. Used during initial setup and after a soft/factory reset to surface the wizard step. |
 | 🔴 `:8081/deleteDatabaseTraceFiles` | GET → Text | Delete database trace files — returns `deleted files: [...], could not delete: [...]` |
 
 ### Requires Authentication (401 Unauthorized without credentials)

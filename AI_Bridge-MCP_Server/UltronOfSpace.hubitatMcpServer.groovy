@@ -104,48 +104,42 @@ private void renderAiInstructions(String client) {
 }
 
 private void renderChatGptInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
-    String urlToUse = hasCloud ? cloudUrl : localUrl
+    // ChatGPT lives in the cloud. Without cloud access, it literally can't reach the hub.
+    if (!hasCloud) {
+        renderRegisterHubCard("ChatGPT runs in the cloud, so it needs a public URL to reach your hub. Your hub isn't registered yet — this is free and takes about 2 minutes.")
+        return
+    }
+
+    section("⚠️ Requires ChatGPT Plus") {
+        paragraph "ChatGPT Custom GPT Actions are only available on a <b>ChatGPT Plus subscription</b> (\$20/month). The free tier can't create Custom GPTs. If you're on free ChatGPT, pick <b>Claude Desktop</b> above instead."
+    }
 
     section("Step 3: Copy this URL") {
-        paragraph buildBigCopyBox(urlToUse)
+        paragraph buildBigCopyBox(cloudUrl)
     }
 
-    section("Step 4: Paste it into ChatGPT") {
+    section("Step 4: Create a Custom GPT in ChatGPT") {
         paragraph """
+<b>Note:</b> You must do this on a <b>computer</b> (chat.openai.com). The iPhone/Android ChatGPT apps cannot create Custom GPTs, but once created here, you can use your GPT from any device.
 <ol style='line-height:1.9;font-size:14px'>
-  <li>Open <b>ChatGPT</b> (website, phone app, or desktop — doesn't matter)</li>
-  <li>Click <b>your profile picture</b> → <b>My GPTs</b> → <b>Create a GPT</b><br>
-      <small style='color:#666'>(or: <b>Explore GPTs</b> → <b>+ Create</b>)</small></li>
-  <li>Click the <b>Configure</b> tab</li>
-  <li>Scroll down, click <b>Create new action</b></li>
-  <li>Click <b>Import from URL</b> and paste the URL from Step 3</li>
-  <li>Scroll down to <b>Authentication</b>, click the gear icon:
-    <ul>
-      <li>Auth Type: <b>API Key</b></li>
-      <li>API Key: <code>${token}</code> (copy this)</li>
-      <li>Auth Type dropdown: <b>Custom</b></li>
-      <li>Custom Header Name: leave empty</li>
-    </ul>
+  <li>On your computer, go to <a href='https://chat.openai.com' target='_blank'>chat.openai.com</a></li>
+  <li>In the left sidebar, click <b>GPTs</b> → <b>+ Create</b></li>
+  <li>Click the <b>Configure</b> tab at the top</li>
+  <li>Scroll down to the bottom, click <b>Create new action</b></li>
+  <li>Under <b>Schema</b>, click <b>Import from URL</b> and paste the URL from Step 3</li>
+  <li>Scroll up to <b>Authentication</b> (near the top), click the gear icon</li>
+  <li>Choose <b>API Key</b> as the Authentication Type</li>
+  <li>Paste your access token:<br>
+      ${buildBigCopyBox(token)}
   </li>
-  <li>Click <b>Save</b>, then <b>Create</b> at the top</li>
-  <li>Give the GPT a name (like "My Smart Home") and save</li>
+  <li>Leave <b>Auth Type</b> as <b>Custom</b>. ChatGPT will use the OpenAPI spec to know where to put the token — you don't need to set anything else.</li>
+  <li>Click <b>Save</b></li>
+  <li>Back at the top, click <b>Create</b> — give your GPT a name like "My Smart Home", save</li>
 </ol>
 <div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
-  <b>✅ Done forever.</b> Now say things like <i>"turn on the kitchen light"</i> in any future chat with that GPT.
-  Works from your phone, computer, anywhere.
+  <b>✅ Setup complete.</b> Now say things like <i>"turn on the kitchen light"</i> in any chat with that GPT — from your phone, computer, anywhere.
 </div>
 """.toString()
-    }
-
-    if (!hasCloud) {
-        section {
-            paragraph """
-<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
-<b>⚠️ Heads up:</b> your hub isn't registered with Hubitat cloud, so ChatGPT can only reach it when you're <b>on your home Wi-Fi</b>.
-To fix: <b>Settings → Hub Details → Register Hub</b> (free, 10 seconds). Then reload this page.
-</div>
-""".toString()
-        }
     }
 }
 
@@ -156,15 +150,28 @@ private void renderClaudeInstructions(String cloudUrl, String localUrl, boolean 
         paragraph buildBigCopyBox(urlToUse)
     }
 
-    section("Step 4: Paste it into Claude Desktop's config") {
+    section("Before you start: do you have Node.js?") {
+        paragraph """
+Claude Desktop uses a small helper called <code>npx</code> to bridge to your hub, which comes with <b>Node.js</b> (free).
+<ul style='line-height:1.7;font-size:14px'>
+  <li><b>Already have it?</b> Open a terminal (Command Prompt on Windows, Terminal on Mac), type <code>npx --version</code>. If a number shows up, you're set.</li>
+  <li><b>Don't have it?</b> Grab it from <a href='https://nodejs.org' target='_blank'>nodejs.org</a> — takes ~2 minutes. Use the LTS version.</li>
+</ul>
+<small style='color:#666'>Without Node.js, Claude Desktop will show "MCP server failed to start" with no other hint.</small>
+""".toString()
+    }
+
+    section("Step 4: Paste into Claude Desktop's config") {
         paragraph """
 <ol style='line-height:1.9;font-size:14px'>
   <li>Open <b>Claude Desktop</b> on your computer</li>
-  <li>Click the hamburger menu (three lines, top left) → <b>File</b> → <b>Settings</b><br>
-      <small style='color:#666'>(on Mac: <b>Claude</b> menu → <b>Settings</b>)</small></li>
+  <li>Open Settings:<br>
+      <small>Windows: hamburger menu (☰ top-left) → <b>File</b> → <b>Settings</b></small><br>
+      <small>Mac: <b>Claude</b> menu → <b>Settings</b></small>
+  </li>
   <li>Click <b>Developer</b> in the left sidebar</li>
-  <li>Click <b>Edit Config</b> — this opens a file in your text editor</li>
-  <li>Replace everything in the file with this (the URL is already filled in for you):</li>
+  <li>Click <b>Edit Config</b> — opens a JSON file in your text editor</li>
+  <li>Find the <code>mcpServers</code> section (or create one if empty) and <b>merge</b> this entry into it (don't replace existing servers):</li>
 </ol>
 <pre style='background:#f4f4f4;padding:12px;border-radius:4px;font-size:12px;overflow-x:auto;border:1px solid #ddd'>{
   "mcpServers": {
@@ -176,79 +183,100 @@ private void renderClaudeInstructions(String cloudUrl, String localUrl, boolean 
 }</pre>
 <ol start='6' style='line-height:1.9;font-size:14px'>
   <li>Save the file</li>
-  <li>Completely quit Claude Desktop and reopen it</li>
+  <li>Completely quit Claude Desktop:<br>
+      <small>Windows: right-click Claude in the system tray → <b>Quit</b> (closing the window isn't enough)</small><br>
+      <small>Mac: <b>Cmd+Q</b> in Claude</small>
+  </li>
+  <li>Reopen Claude Desktop. Look for a small hammer / tools icon near the chat box — that means it connected.</li>
 </ol>
 <div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
-  <b>✅ Done forever.</b> Now ask: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light"</i>.
+  <b>✅ Setup complete.</b> Ask: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light"</i>.
+  Claude will ask you to approve each tool the first time it uses it.
 </div>
 """.toString()
+    }
+
+    if (!hasCloud) {
+        section {
+            paragraph """
+<div style='background:#fff4e6;border-left:4px solid #f39c12;padding:10px;border-radius:4px'>
+<b>Note:</b> your hub isn't registered with Hubitat cloud, so Claude Desktop can only reach it when you're <b>on your home Wi-Fi</b>.
+If you use your laptop away from home and want it to still work, go to <b>Settings → Hub Details → Register Hub</b> (free, ~2 minutes), then reload this page and copy the new URL.
+</div>
+""".toString()
+        }
     }
 }
 
 private void renderGrokInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
-    String urlToUse = hasCloud ? cloudUrl : localUrl
+    if (!hasCloud) {
+        renderRegisterHubCard("Grok runs in the cloud and needs a public URL to reach your hub. Your hub isn't registered yet — this is free and takes about 2 minutes.")
+        return
+    }
+
+    section("⚠️ Grok OpenAPI support is still evolving") {
+        paragraph "Grok's custom-tool / external-action feature has been changing frequently. These instructions are a best guess — if Grok's UI doesn't match, try <b>Claude Desktop</b> instead (very reliable) or <b>ChatGPT</b> (very reliable with ChatGPT Plus)."
+    }
 
     section("Step 3: Copy this URL") {
-        paragraph buildBigCopyBox(urlToUse)
+        paragraph buildBigCopyBox(cloudUrl)
     }
 
-    section("Step 4: Paste it into Grok") {
+    section("Step 4: Paste into Grok") {
         paragraph """
+Grok doesn't currently have a standard OpenAPI import in its UI. When they add one:
 <ol style='line-height:1.9;font-size:14px'>
-  <li>Open <b>Grok</b> (on x.com or in the app)</li>
-  <li>Go to <b>custom tools</b> / <b>actions</b> / <b>integrations</b> (the wording may vary)</li>
-  <li>Paste the URL from Step 3</li>
-  <li>When asked for an API key or token, paste: <code>${token}</code></li>
+  <li>Open Grok's settings or custom tools / actions / integrations area</li>
+  <li>Paste the URL from Step 3 as an OpenAPI source</li>
+  <li>When asked for an API key, paste:<br>
+      ${buildBigCopyBox(token)}
+  </li>
 </ol>
-<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
-  <b>✅ Done.</b> Grok can now control your smart home.
-</div>
-<small style='color:#666'>Grok's custom tool feature is still evolving — if the UI doesn't match these steps, look for "custom actions" or "external tools" in your settings.</small>
+<small style='color:#666'>If you can't find the right menu, we recommend switching to Claude Desktop or ChatGPT Plus — both have tested, first-class support.</small>
 """.toString()
-    }
-
-    if (!hasCloud) {
-        section {
-            paragraph """
-<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
-<b>⚠️ Register your hub first.</b> Grok runs in the cloud and needs cloud access.
-<b>Settings → Hub Details → Register Hub</b> (free). Then reload this page.
-</div>
-""".toString()
-        }
     }
 }
 
 private void renderGeminiInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
-    String urlToUse = hasCloud ? cloudUrl : localUrl
-
-    section("Step 3: Copy this URL") {
-        paragraph buildBigCopyBox(urlToUse)
-    }
-
-    section("Step 4: Paste it into Gemini") {
-        paragraph """
-<ol style='line-height:1.9;font-size:14px'>
-  <li>Open <b>Gemini</b> (gemini.google.com or the mobile app)</li>
-  <li>Go to <b>Extensions</b> or <b>custom tools</b></li>
-  <li>Add a new custom tool, paste the URL from Step 3</li>
-  <li>When asked for an API key, paste: <code>${token}</code></li>
-</ol>
-<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
-  <b>✅ Done.</b> Gemini can now control your smart home.
-</div>
-""".toString()
-    }
-
     if (!hasCloud) {
-        section {
-            paragraph """
-<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
-<b>⚠️ Register your hub first.</b> Gemini runs in the cloud and needs cloud access.
-<b>Settings → Hub Details → Register Hub</b> (free). Then reload this page.
+        renderRegisterHubCard("Gemini runs in the cloud and needs a public URL to reach your hub. Your hub isn't registered yet — this is free and takes about 2 minutes.")
+        return
+    }
+
+    section("⚠️ Gemini doesn't support arbitrary OpenAPI tools on the free tier") {
+        paragraph """
+Google's Gemini currently doesn't have a general-purpose "paste an OpenAPI URL" feature on the free tier. Gemini <b>Extensions</b> is a curated first-party list (Gmail, Drive, etc.) — you can't add custom tools to it. <b>Gems</b> (the custom-assistant feature) does allow some tool integration but it's evolving and the UI varies.
+<br><br>
+<b>Our recommendation:</b> use <b>Claude Desktop</b> (free, rock-solid) or <b>ChatGPT Plus</b> (\$20/mo, very reliable) instead. When Gemini adds OpenAPI support, this guide will be updated.
+"""
+    }
+
+    section("Step 3: Copy this URL (for when you need it)") {
+        paragraph buildBigCopyBox(cloudUrl)
+    }
+
+    section("Access token") {
+        paragraph "If Gemini asks for an API key, paste:"
+        paragraph buildBigCopyBox(token)
+    }
+}
+
+private void renderRegisterHubCard(String reason) {
+    section("⚠️ One-time step: register your hub with Hubitat's free cloud") {
+        paragraph """
+<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:12px;border-radius:4px'>
+${reason}
+<br><br>
+<b>How:</b>
+<ol style='line-height:1.7'>
+  <li>In Hubitat, go to <b>Settings → Hub Details</b></li>
+  <li>Click <b>Register Hub</b></li>
+  <li>Create a free Hubitat account (or sign in to an existing one). You'll need to confirm your email.</li>
+  <li>Come back to this page and reload it. The cloud URL will appear automatically.</li>
+</ol>
+<small>This is Hubitat's built-in free cloud relay. It's the same mechanism Maker API uses. You do <b>not</b> need Hub Protect (\$30/year) — that's a different, separate subscription for cloud backups.</small>
 </div>
 """.toString()
-        }
     }
 }
 
@@ -475,8 +503,9 @@ def handleMcp() {
 }
 
 def handleOpenApi() {
-    String serverUrl = getBaseUrl()
-    Map spec = generateOpenApiSpec(serverUrl, "AI Bridge - MCP Server")
+    String localUrl = getBaseUrl()
+    String cloudUrl = getCloudBaseUrl()
+    Map spec = generateOpenApiSpec(cloudUrl, localUrl, "AI Bridge - MCP Server")
     render contentType: "application/json", data: JsonOutput.toJson(spec), status: 200
 }
 
@@ -491,10 +520,22 @@ private invokeTool(String handlerName, Map args) {
 
 def toolGetHubDetails(args) { return collectHubDetails() }
 def toolGetHubStatus(args) { return collectHubStatus() }
-def toolGetHubMemory(args) { return [freeOSMemoryKB: safeGetNum { location.hub?.getDataValue("freeMemory") }] }
-def toolGetHubTemperature(args) { return [temperatureC: safeGetNum { location.hub?.getDataValue("temperature") }] }
-def toolGetHubDatabaseSize(args) { return [databaseMB: safeGetNum { location.hub?.getDataValue("databaseSize") }] }
-def toolGetHubMemoryHistory(args) { return [note: "Not available on-hub; use /hub/advanced/freeOSMemoryHistory directly."] }
+def toolGetHubMemory(args) {
+    def raw = fetchHubText("/hub/advanced/freeOSMemory")
+    return [freeOSMemoryKB: parseNumeric(raw)]
+}
+def toolGetHubTemperature(args) {
+    def raw = fetchHubText("/hub/advanced/internalTempCelsius")
+    return [temperatureC: parseNumeric(raw)]
+}
+def toolGetHubDatabaseSize(args) {
+    def raw = fetchHubText("/hub/advanced/databaseSize")
+    return [databaseMB: parseNumeric(raw)]
+}
+def toolGetHubMemoryHistory(args) {
+    def raw = fetchHubText("/hub/advanced/freeOSMemoryHistory")
+    return [csv: raw]
+}
 
 def toolListDevices(args) { return allowedDevices().collect { deviceSummary(it) } }
 def toolGetDevice(args) {
@@ -522,16 +563,39 @@ def toolSendDeviceCommand(args) {
     String cmd = args.command
     List values = (args.values ?: []) as List
     if (!cmd) return errorMap("command is required")
+
+    // Validate that the device actually supports this command. Prevents calling
+    // driver internals or arbitrary methods via the AI.
+    if (!dev.hasCommand(cmd)) {
+        List available = dev.supportedCommands?.collect { it.name }?.unique()?.sort() ?: []
+        return errorMap("Command '${cmd}' not supported. Available: ${available.join(', ')}")
+    }
+
+    // Coerce numeric strings to numbers. Without this, setLevel("50") throws
+    // MissingMethodException because the driver expects an Integer, not a String.
+    List coerced = values.collect { v -> coerceArg(v) }
+
     try {
-        if (values.isEmpty()) {
+        if (coerced.isEmpty()) {
             dev."${cmd}"()
         } else {
-            dev."${cmd}"(*values)
+            dev."${cmd}"(*coerced)
         }
-        return [success: true, deviceId: dev.id, command: cmd, values: values]
+        return [success: true, deviceId: dev.id, command: cmd, values: coerced]
     } catch (Throwable t) {
         return errorMap("Command failed: ${t.message}")
     }
+}
+
+private coerceArg(v) {
+    if (v == null) return null
+    if (v instanceof Number || v instanceof Boolean || v instanceof Map) return v
+    String s = v.toString()
+    if (s.isInteger()) return s.toInteger()
+    if (s.isBigDecimal() || s.isDouble()) return s.toBigDecimal()
+    if (s.equalsIgnoreCase("true")) return true
+    if (s.equalsIgnoreCase("false")) return false
+    return s
 }
 
 def toolListModes(args) {
@@ -557,9 +621,15 @@ def toolSetHsm(args) {
 }
 
 def toolListRooms(args) {
-    def rooms = []
-    try { rooms = getAllRoomsJson() } catch (e) { /* best-effort */ }
-    return rooms
+    // Prefer the internal endpoint. Fall back to deriving rooms from the
+    // allowed device list if the hub endpoint isn't reachable.
+    def fromHub = fetchHubJson("/room/listRoomsJson")
+    if (fromHub != null && !(fromHub instanceof Map && fromHub.error)) return fromHub
+    return allowedDevices()
+        .collect { it.roomName }
+        .findAll { it }
+        .unique()
+        .collect { [name: it] }
 }
 def toolListRoomsWithDevices(args) {
     def rooms = [:]
@@ -600,25 +670,39 @@ def toolGetLocation(args) {
     ]
 }
 
-def toolGetZigbeeDetails(args) { return [note: "Use direct endpoint /hub/zigbeeDetails/json"] }
-def toolGetZigbeeTopology(args) { return [note: "Use direct endpoint /hub/zigbee/getChildAndRouteInfoJson"] }
-def toolGetZwaveDetails(args) { return [note: "Use direct endpoint /hub/zwaveDetails/json"] }
+def toolGetZigbeeDetails(args) { return fetchHubJson("/hub/zigbeeDetails/json") }
+def toolGetZigbeeTopology(args) { return fetchHubJson("/hub/zigbee/getChildAndRouteInfoJson") }
+def toolGetZwaveDetails(args) { return fetchHubJson("/hub/zwaveDetails/json") }
 
-def toolListInstalledApps(args) {
-    return getChildApps().collect { [id: it.id, label: it.label, name: it.name] }
+def toolListInstalledApps(args) { return fetchHubJson("/installedapp/list/data") }
+def toolGetInstalledAppStatus(args) {
+    if (!args.appId) return errorMap("appId is required")
+    return fetchHubJson("/installedapp/statusJson/${args.appId}")
 }
-def toolGetInstalledAppStatus(args) { return [note: "Use direct endpoint /installedapp/statusJson/${args.appId}"] }
 
-def toolGetLogs(args) { return [note: "Use direct endpoint /logs/past/json"] }
-def toolGetDeviceStatistics(args) { return [note: "Use direct endpoint /logs/json"] }
-def toolGetHubEvents(args) { return [note: "Use direct endpoint /hub/eventsJson"] }
-def toolGetNetworkConfig(args) { return [note: "Use direct endpoint /hub2/networkConfiguration"] }
-def toolListDashboards(args) { return [note: "Use direct endpoint /dashboard/all"] }
-def toolListLocalBackups(args) { return [note: "Use direct endpoint /hub2/localBackups"] }
-def toolListDrivers(args) { return [note: "Use direct endpoint /driver/list/data"] }
-def toolListAppTypes(args) { return [note: "Use direct endpoint /app/list/data"] }
-def toolGetAppSource(args) { return [note: "Use direct endpoint /app/ajax/code?id=${args.appId}"] }
-def toolGetDriverSource(args) { return [note: "Use direct endpoint /driver/ajax/code?id=${args.driverId}"] }
+def toolGetLogs(args) {
+    String path = "/logs/past/json"
+    List qs = []
+    if (args.sourceType && args.sourceType != "all") qs << "type=${args.sourceType}"
+    if (args.sourceId) qs << "id=${args.sourceId}"
+    if (qs) path += "?" + qs.join("&")
+    return fetchHubJson(path)
+}
+def toolGetDeviceStatistics(args) { return fetchHubJson("/logs/json") }
+def toolGetHubEvents(args) { return fetchHubJson("/hub/eventsJson") }
+def toolGetNetworkConfig(args) { return fetchHubJson("/hub2/networkConfiguration") }
+def toolListDashboards(args) { return fetchHubJson("/dashboard/all") }
+def toolListLocalBackups(args) { return fetchHubJson("/hub2/localBackups") }
+def toolListDrivers(args) { return fetchHubJson("/driver/list/data") }
+def toolListAppTypes(args) { return fetchHubJson("/app/list/data") }
+def toolGetAppSource(args) {
+    if (!args.appId) return errorMap("appId is required")
+    return fetchHubJson("/app/ajax/code?id=${args.appId}")
+}
+def toolGetDriverSource(args) {
+    if (!args.driverId) return errorMap("driverId is required")
+    return fetchHubJson("/driver/ajax/code?id=${args.driverId}")
+}
 
 // ---------------------------------------------------------------------------
 // REST handlers (thin wrappers around tool handlers)
@@ -668,6 +752,41 @@ private void renderJson(data) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+// Loopback HTTP call to the hub's own web server. Used to fetch data from
+// internal endpoints (/hub/..., /hub2/..., /device/..., etc.) that don't have
+// a direct Groovy API. These endpoints are unauthenticated on localhost.
+private fetchHubJson(String path) {
+    try {
+        def result = null
+        httpGet([uri: "http://127.0.0.1:8080${path}", contentType: "application/json", timeout: 10]) { resp ->
+            result = resp.data
+        }
+        return result
+    } catch (e) {
+        return errorMap("Hub endpoint ${path} failed: ${e.message}")
+    }
+}
+
+private String fetchHubText(String path) {
+    try {
+        String result = null
+        httpGet([uri: "http://127.0.0.1:8080${path}", contentType: "text/plain", timeout: 10]) { resp ->
+            result = resp.data?.toString()
+        }
+        return result
+    } catch (e) {
+        return null
+    }
+}
+
+private Number parseNumeric(String s) {
+    if (!s) return null
+    String trimmed = s.trim()
+    if (trimmed.isInteger()) return trimmed.toInteger()
+    if (trimmed.isBigDecimal() || trimmed.isDouble()) return trimmed.toBigDecimal()
+    return null
+}
 
 private List allowedDevices() {
     return (settings.selectedDevices ?: []) as List

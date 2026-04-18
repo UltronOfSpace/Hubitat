@@ -390,7 +390,7 @@ def rpcError(id, int code, String message) {
 // OpenAPI 3.1.0 generator
 // ---------------------------------------------------------------------------
 
-def generateOpenApiSpec(String serverUrl, String appTitle) {
+def generateOpenApiSpec(String cloudUrl, String localUrl, String appTitle) {
     Map paths = [:]
     getToolRegistry().findAll { it.openApi != null }.each { t ->
         Map oa = t.openApi
@@ -400,6 +400,16 @@ def generateOpenApiSpec(String serverUrl, String appTitle) {
         paths[p][m] = buildOperation(t, oa)
     }
 
+    // Prefer cloud URL for cloud-based AI clients (ChatGPT, Grok, Gemini).
+    // Include local URL as a fallback server for LAN-only use.
+    List servers = []
+    if (cloudUrl) {
+        servers << [url: cloudUrl, description: "Hubitat cloud (works from anywhere)"]
+    }
+    if (localUrl && localUrl != cloudUrl) {
+        servers << [url: localUrl, description: "Local (same Wi-Fi as hub only)"]
+    }
+
     return [
         openapi: "3.1.0",
         info: [
@@ -407,7 +417,7 @@ def generateOpenApiSpec(String serverUrl, String appTitle) {
             description: "Control and query your Hubitat Elevation hub from AI assistants.",
             version: "1.0.0"
         ],
-        servers: [[url: serverUrl]],
+        servers: servers,
         components: [
             securitySchemes: [
                 access_token: [

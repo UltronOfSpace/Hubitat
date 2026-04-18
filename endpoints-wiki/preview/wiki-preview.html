@@ -1,0 +1,3772 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8'>
+<title>Hubitat HTTP Endpoints Wiki</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 960px; margin: 0 auto; padding: 20px; line-height: 1.6; color: #333; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  tr:nth-child(even) { background: #fafafa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f5f5f5; padding: 16px; border-radius: 6px; overflow-x: auto; }
+  pre code { background: none; padding: 0; }
+  blockquote { border-left: 4px solid #ddd; margin: 1em 0; padding: 0.5em 1em; color: #555; background: #f9f9f9; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+  h2 { border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 2em; }
+  h2:target { background: #ffffcc; padding: 8px; }
+  details { margin: 1em 0; }
+  summary { cursor: pointer; font-weight: bold; }
+  a { color: #0366d6; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 2em 0; }
+  html { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+<h1 id="hubitat-elevation-http-endpoints-community-reference">Hubitat Elevation HTTP Endpoints — Community Reference</h1>
+<blockquote>
+<p><strong>Tested on:</strong> C-8 Pro (firmware 2.4.4.156), C-4 (firmware 2.4.3.103 and 2.5.0.117 beta)
+<strong>Date:</strong> April 2026
+<strong>Base URL:</strong> <code>http://&lt;HUB_IP&gt;</code> — replace <code>&lt;HUB_IP&gt;</code> with your hub&#39;s IP address (e.g., <code>http://192.168.1.100</code>)</p>
+</blockquote>
+<h2 id="what-is-this">What Is This?</h2>
+<p>Your Hubitat hub has a built-in web server that powers the admin UI you see in your browser. Behind that UI are hundreds of <strong>HTTP endpoints</strong> — URLs you can call directly to read data from your hub or tell it to do things, without clicking through the web interface.</p>
+<p>An <strong>endpoint</strong> is just a URL path on your hub (like <code>/device/list/data</code>) that returns data or performs an action when you visit it.</p>
+<h3 id="how-to-build-a-url">How to Build a URL</h3>
+<p>Every endpoint in this document is written as a <strong>path</strong> starting with <code>/</code>. To use it, put your hub&#39;s address in front:</p>
+<pre><code>http://&lt;YOUR_HUB_IP&gt;/&lt;endpoint path&gt;
+</code></pre>
+<p>For example, if your hub&#39;s IP is <code>192.168.1.100</code> and the endpoint is <code>/device/list/data</code>:</p>
+<pre><code>http://192.168.1.100/device/list/data
+</code></pre>
+<p>You can also use <code>hubitat.local</code> instead of the IP address if your network supports mDNS (most do):</p>
+<pre><code>http://hubitat.local/device/list/data
+</code></pre>
+<p>If you have multiple hubs, each has a unique name (e.g., <code>hubitat-sandbox.local</code>). You can find your hub&#39;s IP on the Settings page or by checking your router&#39;s device list.</p>
+<h3 id="who-is-this-for">Who Is This For?</h3>
+<p>You can use these endpoints from:</p>
+<ul>
+<li><strong>Your browser&#39;s address bar</strong> — type the full URL to see what comes back</li>
+<li><strong>Scripts and automations</strong> — use <code>curl</code>, Python, Node.js, or any HTTP client</li>
+<li><strong>Third-party integrations</strong> — tools like Home Assistant, Node-RED, or custom dashboards</li>
+</ul>
+<p>This document catalogs every known endpoint, what it does, what data it returns, and whether it&#39;s safe to call.</p>
+<p><strong>How these were discovered:</strong> The hub&#39;s web interface is built with JavaScript files that contain all the URL patterns the UI uses. We extracted those patterns from the JS source code and then tested each one against real hubs to verify behavior and document responses.</p>
+<hr>
+<h2 id="-critical-safety-warning">⚠️ CRITICAL SAFETY WARNING</h2>
+<p><strong>Many endpoints trigger real actions when you simply visit the URL — there is no confirmation dialog or undo.</strong> Unlike most web applications, Hubitat executes actions on plain <strong>GET requests</strong> (the kind your browser makes when you type a URL or click a link). There is no <strong>CSRF protection</strong> (a security mechanism that would normally prevent accidental actions).</p>
+<p>This means automated tools, scripts, or even your browser pre-loading links can accidentally reboot your hub, disable radios, or trigger firmware updates. Endpoints marked with 🔴 below <strong>will execute an action</strong> when visited. Do not open them unless you intend to trigger that action.</p>
+<hr>
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#1-websocket-endpoints-live-streaming">WebSocket Endpoints (Live Streaming)</a></li>
+<li><a href="#2-hub-identity--status">Hub Identity &amp; Status</a></li>
+<li><a href="#3-hub-system-info-plain-text">Hub System Info (Plain Text)</a></li>
+<li><a href="#4-device-endpoints">Device Endpoints</a></li>
+<li><a href="#5-app-code-endpoints">App Code Endpoints</a></li>
+<li><a href="#6-driver-code-endpoints">Driver Code Endpoints</a></li>
+<li><a href="#7-installed-app-endpoints">Installed App Endpoints</a></li>
+<li><a href="#8-hub2-vue-spa-api">hub2/ Vue SPA API</a></li>
+<li><a href="#9-location--modes">Location &amp; Modes</a></li>
+<li><a href="#10-rooms">Rooms</a></li>
+<li><a href="#11-logs">Logs</a></li>
+<li><a href="#12-dashboard-endpoints">Dashboard Endpoints</a></li>
+<li><a href="#13-libraries--bundles">Libraries &amp; Bundles</a></li>
+<li><a href="#14-zigbee-management">Zigbee Management</a></li>
+<li><a href="#15-z-wave-management">Z-Wave Management</a></li>
+<li><a href="#16-z-wave-2-dual-radioantenna">Z-Wave 2 (Dual Radio/Antenna)</a></li>
+<li><a href="#17-matter">Matter</a></li>
+<li><a href="#18-hub-advanced--admin">Hub Advanced / Admin</a></li>
+<li><a href="#19-hub-cloud--updates">Hub Cloud &amp; Updates</a></li>
+<li><a href="#20-hub-settings--ui">Hub Settings &amp; UI</a></li>
+<li><a href="#21-network-configuration">Network Configuration</a></li>
+<li><a href="#22-file-manager">File Manager</a></li>
+<li><a href="#23-tts-text-to-speech">TTS (Text-to-Speech)</a></li>
+<li><a href="#24-user-management">User Management</a></li>
+<li><a href="#25-code-publishing">Code Publishing</a></li>
+<li><a href="#26-mobile-api--smartstart">Mobile API &amp; SmartStart</a></li>
+<li><a href="#27-maker-api-token-required">Maker API (Token Required)</a></li>
+<li><a href="#28-port-8081-diagnostic-tool">Port 8081 (Diagnostic Tool)</a></li>
+<li><a href="#29-onboarding--setup-wizard">Onboarding &amp; Setup Wizard</a></li>
+<li><a href="#30-miscellaneous">Miscellaneous</a></li>
+<li><a href="#31-confirmed-non-existent-endpoints-404">Confirmed Non-Existent Endpoints (404)</a></li>
+</ol>
+<hr>
+<h2 id="how-to-read-this-document">How to Read This Document</h2>
+<h3 id="safety-indicators">Safety Indicators</h3>
+<p>Every endpoint is marked with a colored circle showing whether it&#39;s safe:</p>
+<table>
+<thead>
+<tr>
+<th>Symbol</th>
+<th>Meaning</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢</td>
+<td><strong>Safe</strong> — only reads data, changes nothing</td>
+<td>Getting your device list</td>
+</tr>
+<tr>
+<td>🟡</td>
+<td><strong>Mostly safe</strong> — reads data but kicks off a background task (like a scan)</td>
+<td>Starting a Zigbee channel scan</td>
+</tr>
+<tr>
+<td>🔴</td>
+<td><strong>Action</strong> — changes something on your hub. Don&#39;t call unless you mean it!</td>
+<td>Rebooting, deleting a device, toggling a radio</td>
+</tr>
+</tbody></table>
+<h3 id="url-notation">URL Notation</h3>
+<table>
+<thead>
+<tr>
+<th>Notation</th>
+<th>What It Means</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>{id}</code></td>
+<td>A placeholder — replace with an actual value</td>
+<td><code>/device/json/{id}</code> → <code>/device/json/42</code></td>
+</tr>
+<tr>
+<td><code>?param=value</code></td>
+<td>A <strong>query parameter</strong> — extra info appended to the URL after a <code>?</code></td>
+<td><code>/hub/updateName?name=MyHub</code></td>
+</tr>
+<tr>
+<td>POST</td>
+<td>The endpoint requires a <strong>POST request</strong> (sending data to the hub), not just visiting the URL. Use <code>curl -X POST</code> or similar.</td>
+<td><code>curl -X POST http://hub/hub/reboot</code></td>
+</tr>
+</tbody></table>
+<h3 id="the-quottypequot-column">The &quot;Type&quot; Column</h3>
+<p>Every endpoint table has a <strong>Type</strong> column that tells you two things: what HTTP method to use, and what format the response comes back in.</p>
+<p><strong>Response formats</strong> (what you get back):</p>
+<ul>
+<li><strong>JSON</strong> — structured data like <code>{&quot;name&quot;: &quot;Living Room&quot;, &quot;id&quot;: 1}</code>. This is what scripts and integrations consume. <strong>JSON</strong> (JavaScript Object Notation) is the standard data format for web APIs.</li>
+<li><strong>HTML</strong> — a full web page with the Hubitat UI. These are the same pages you see when clicking around in the hub&#39;s admin interface.</li>
+<li><strong>Text</strong> — a simple plain-text value like a number (<code>674272</code>) or a word (<code>true</code>, <code>done</code>).</li>
+<li><strong>File</strong> — a downloadable file (backup, export, etc.)</li>
+<li><strong>WebSocket</strong> — a persistent live-streaming connection (not a normal HTTP request)</li>
+</ul>
+<p><strong>Request methods</strong> (how to call it):</p>
+<ul>
+<li><strong>GET</strong> — the default. Just visit the URL in your browser or use <code>curl http://hub/path</code>. Most endpoints use GET.</li>
+<li><strong>POST</strong> — you must send data TO the hub. You can&#39;t just visit the URL — use <code>curl -X POST</code> or a script. When you see POST in the Type column, the endpoint also notes what <strong>format</strong> to send the data in:<ul>
+<li><strong>POST (JSON body)</strong> — send data as JSON with a <code>Content-Type: application/json</code> header. Example: <code>curl -X POST -H &quot;Content-Type: application/json&quot; -d &#39;{&quot;id&quot;:null,&quot;source&quot;:&quot;...&quot;}&#39; http://hub/path</code></li>
+<li><strong>POST (form body)</strong> — send data as form fields with <code>Content-Type: application/x-www-form-urlencoded</code>. Example: <code>curl -X POST -d &quot;name=value&amp;other=value&quot; http://hub/path</code></li>
+<li><strong>POST (multipart)</strong> — send files using multipart form data. Example: <code>curl -X POST -F &quot;file=@myfile.txt&quot; http://hub/path</code></li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p><strong>Why does this matter?</strong> Sending data in the wrong format causes silent failures. For example, <code>/app/saveOrUpdateJson</code> requires a JSON body — if you send form data instead, it returns <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Unknown error occurred&quot;}</code> with no further explanation.</p>
+</blockquote>
+<hr>
+<h2 id="hub-model-amp-firmware-compatibility">Hub Model &amp; Firmware Compatibility</h2>
+<p>Most endpoints work the same regardless of which hub model you have. However, some features are hardware-specific (e.g., WiFi is only on certain models, Z-Wave 2 is only on dual-radio hubs). The table below lists the known differences:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>C-8 Pro</th>
+<th>C-4</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/hub/cpuInfo</code></td>
+<td><code>Processors 4 Load Average 0.15</code></td>
+<td>404</td>
+<td>Hardware-specific</td>
+</tr>
+<tr>
+<td><code>/hub/advanced/zipgatewayVersion</code></td>
+<td><code>7.18.3</code></td>
+<td><code>Unsupported</code></td>
+<td>C-4 lacks Z-Wave 700 gateway</td>
+</tr>
+<tr>
+<td><code>/hub/advanced/installDriver/all</code></td>
+<td>Works</td>
+<td><code>Hub not compatible</code></td>
+<td></td>
+</tr>
+<tr>
+<td><code>/hub/advanced/getWiFiNetworkInfoAsyncStatus</code></td>
+<td>Works</td>
+<td><code>Hub not compatible</code></td>
+<td>C-4 has no WiFi</td>
+</tr>
+<tr>
+<td><code>/hub/publishCode/status</code></td>
+<td>JSON</td>
+<td>404</td>
+<td>Not available on firmware 2.4.3</td>
+</tr>
+<tr>
+<td><code>/hub/zwaveLogs</code></td>
+<td>HTML page</td>
+<td>404</td>
+<td>C-4 legacy Z-Wave stack</td>
+</tr>
+<tr>
+<td><code>/hub/zwaveTopology</code></td>
+<td>HTML page</td>
+<td>500</td>
+<td>C-4 legacy Z-Wave stack</td>
+</tr>
+<tr>
+<td><code>/hub/zwaveRepair2Status</code></td>
+<td>JSON</td>
+<td>404</td>
+<td>Z-Wave JS only (C-7+)</td>
+</tr>
+<tr>
+<td><code>/hub/zwave/securityKeys</code></td>
+<td>HTML page</td>
+<td>404</td>
+<td>Not on C-4</td>
+</tr>
+<tr>
+<td><code>/hub/zwave/securityCode</code></td>
+<td>HTML page</td>
+<td>404</td>
+<td>Not on C-4</td>
+</tr>
+<tr>
+<td><code>/hub/zwave2/*</code></td>
+<td>Functional</td>
+<td>404 or error</td>
+<td>Dual-radio only (C-8 Pro)</td>
+</tr>
+<tr>
+<td><code>/hub/matterDetails/json</code></td>
+<td><code>installed: true</code></td>
+<td><code>installed: false</code></td>
+<td>Matter not on C-4</td>
+</tr>
+<tr>
+<td><code>/hub/advanced/freeOSMemoryHistory</code></td>
+<td>6-column CSV</td>
+<td>5-column CSV</td>
+<td>C-4 lacks &quot;Direct Java&quot; column</td>
+</tr>
+<tr>
+<td><code>/hub2/availableWiFiNetworks</code></td>
+<td>Lists SSIDs</td>
+<td>Empty <code>[]</code></td>
+<td>C-4 has no WiFi hardware</td>
+</tr>
+<tr>
+<td><code>/hub2/setSetting/chatbot/</code></td>
+<td>Works</td>
+<td>Not in JS</td>
+<td>New chatbot toggle (2.4.4+)</td>
+</tr>
+<tr>
+<td><code>/app/createVisualRuleBuilderRule</code></td>
+<td>Works</td>
+<td>Not in JS</td>
+<td>Visual Rule Builder (2.4.4+)</td>
+</tr>
+<tr>
+<td><code>/app/ruleBuilderSuggestions</code></td>
+<td>Works</td>
+<td>Not in JS</td>
+<td>Rule Builder suggestions (2.4.4+)</td>
+</tr>
+<tr>
+<td><code>/hub/zwave2/startAntennaTest</code></td>
+<td>Works</td>
+<td>404</td>
+<td>C-8 Pro dual-antenna testing</td>
+</tr>
+<tr>
+<td><code>/hub/matter/openPairingWindow?node=</code></td>
+<td>Works</td>
+<td>Not in JS</td>
+<td>Matter commissioning (2.4.4+)</td>
+</tr>
+<tr>
+<td><code>/hub/updateLatLongTimezone</code></td>
+<td>Works</td>
+<td>Uses <code>updateLatLogTimezone</code></td>
+<td>Typo fix in 2.4.4</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>What changed between firmware versions?</strong> We compared the JavaScript source files across three firmware versions to find new and removed endpoints. Firmware 2.4.4 added 20 new endpoints (Visual Rule Builder, Z-Wave antenna testing, Matter commissioning, chatbot settings). <strong>Firmware 2.5.0 (beta) adds ~30 more</strong> including MQTT device import, Z-Wave over-the-air device firmware updates, Matter logging, hub variable mesh sharing, room occupancy lighting, and past log export. Endpoints marked with &quot;(2.5.0 beta+)&quot; below are only available on firmware 2.5.0 and newer.</p>
+</blockquote>
+<hr>
+<h2 id="1-websocket-endpoints-live-streaming">1. WebSocket Endpoints (Live Streaming)</h2>
+<p><strong>WebSockets</strong> are persistent connections that let your hub push live data to you in real-time (unlike normal HTTP where you have to ask for data each time). These are commonly used by dashboard apps and monitoring tools to get instant device updates.</p>
+<p>To use these, you need a WebSocket client (built into browsers and most programming languages). A plain browser visit to these URLs won&#39;t work — they require a special &quot;upgrade&quot; handshake. No authentication is needed from your local network (<strong>LAN</strong> — the devices connected to your home router).</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/eventsocket</code></td>
+<td>WebSocket</td>
+<td>Streams device events as JSON objects in real-time</td>
+</tr>
+<tr>
+<td>🟢 <code>/logsocket</code></td>
+<td>WebSocket</td>
+<td>Streams log messages as JSON in real-time</td>
+</tr>
+<tr>
+<td>🟢 <code>/zigbeeLogsocket</code></td>
+<td>WebSocket</td>
+<td>Streams Zigbee radio log messages</td>
+</tr>
+<tr>
+<td>🟢 <code>/zwaveLogsocket</code></td>
+<td>WebSocket</td>
+<td>Streams Z-Wave radio log messages</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>C-4 note:</strong> On the C-4, only <code>/eventsocket</code> returned a 101 Upgrade response during testing. The other three sockets timed out — they may require active radio logging to respond.</p>
+</blockquote>
+<p><strong>Example (JavaScript):</strong></p>
+<pre><code class="language-javascript">const ws = new WebSocket(&quot;ws://192.168.1.100/eventsocket&quot;);
+ws.onmessage = (e) =&gt; console.log(JSON.parse(e.data));
+</code></pre>
+<hr>
+<h2 id="2-hub-identity-amp-status">2. Hub Identity &amp; Status</h2>
+<p>All return JSON. No authentication required.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/details/json</code></td>
+<td>JSON</td>
+<td>Hub identity: name, zip, lat/long, platform version, hardware version, hubUID, MAC, mDNS name, sunrise/sunset, timezone</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/list/data</code></td>
+<td>JSON</td>
+<td>Hub hardware info: hardwareID, zigbeeEui, zigbeeChannel, zigbeePanID, localIP, localSrvPortTCP</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/messages</code></td>
+<td>JSON</td>
+<td>Current mode (id, name, icon), HSM status, hub alert messages</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/echoDiscovery</code></td>
+<td>JSON</td>
+<td>Amazon Echo discovery status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hubStatus</code></td>
+<td>JSON</td>
+<td>Hub init status: serverInitPercentage, serverInitDetails, status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/serverInitPercentage</code></td>
+<td>JSON</td>
+<td>Single value: <code>{&quot;serverInitPercentage&quot;: 100}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/isTOSAccepted</code></td>
+<td>Text</td>
+<td>Returns plain text <code>true</code> or <code>false</code> (not JSON-wrapped)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/rebootingJson</code></td>
+<td>JSON</td>
+<td>Hub reboot status: <code>{hubId, ipAddress, version, registered}</code> — <code>registered</code> is <code>false</code> on unregistered hubs</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/backup/statusJson</code></td>
+<td>JSON</td>
+<td>Backup in-progress status</td>
+</tr>
+<tr>
+<td>🟢 <code>/location/list/data</code></td>
+<td>JSON</td>
+<td>Location: name, temperatureScale, timeZone, zipCode, lat, lon, sunrise, sunset, currentMode</td>
+</tr>
+<tr>
+<td>🟢 <code>/location/data</code></td>
+<td>JSON</td>
+<td>Same as above plus modes list and hubs array</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/details/json</b></summary><pre><code class="language-json">{
+  &quot;hubName&quot;: &quot;&lt;your-hub-name&gt;&quot;,
+  &quot;zipCode&quot;: &quot;&lt;your-zip&gt;&quot;,
+  &quot;latitude&quot;: &lt;lat&gt;,
+  &quot;longitude&quot;: &lt;long&gt;,
+  &quot;mdnsName&quot;: &quot;hubitat&quot;,
+  &quot;platformVersion&quot;: &quot;2.4.4.156&quot;,
+  &quot;hardwareVersion&quot;: &quot;Rev C-8 Pro&quot;,
+  &quot;hubUID&quot;: &quot;&lt;your-hub-uid&gt;&quot;,
+  &quot;macAddress&quot;: &quot;&lt;hub-mac&gt;&quot;,
+  &quot;currentTime&quot;: &quot;2026-04-16T01:20:50+0000&quot;,
+  &quot;sunrise&quot;: &quot;2026-04-15T11:54:00+0000&quot;,
+  &quot;sunset&quot;: &quot;2026-04-16T00:48:00+0000&quot;,
+  &quot;timeZone&quot;: &quot;&lt;your-timezone&gt;&quot;
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hub2/hubData</b></summary><pre><code class="language-json">{
+  &quot;hubId&quot;: &quot;&lt;your-hub-uid&gt;&quot;,
+  &quot;ipAddress&quot;: &quot;&lt;hub-ip&gt;&quot;,
+  &quot;version&quot;: &quot;2.4.4.156&quot;,
+  &quot;model&quot;: &quot;C-8 Pro&quot;,
+  &quot;name&quot;: &quot;&lt;your-hub-name&gt;&quot;,
+  &quot;alerts&quot;: {
+    &quot;hubLoadElevated&quot;: false,
+    &quot;hubLoadSevere&quot;: false,
+    &quot;hubHighLoad&quot;: false,
+    &quot;hubLowMemory&quot;: false,
+    &quot;hubZwaveCrashed&quot;: false,
+    &quot;hubLargeishDatabase&quot;: false,
+    &quot;hubLargeDatabase&quot;: false,
+    &quot;zwaveOffline&quot;: false,
+    &quot;zigbeeOffline&quot;: false,
+    &quot;cloudDisconnected&quot;: false,
+    &quot;platformUpdateAvailable&quot;: false,
+    &quot;spammyDevicesMessage&quot;: null,
+    &quot;databaseSize&quot;: 5
+  },
+  &quot;freshDatabase&quot;: false,
+  &quot;safeMode&quot;: false,
+  &quot;showGetStarted&quot;: false,
+  &quot;showConnectDevices&quot;: false,
+  &quot;showDeveloperMenu&quot;: false,
+  &quot;maintainRoomDashboards&quot;: false,
+  &quot;includeHiddenDevicesInSummary&quot;: false,
+  &quot;excludeVirtualDevicesFromSummary&quot;: false,
+  &quot;zwaveJSInstalled&quot;: false
+}
+</code></pre>
+<p>The <code>alerts</code> sub-object is the source for all UI warning banners. <code>baseModel</code> (nested deeper) also includes <code>dashboard.accessToken</code>, <code>devMode</code>, <code>clock</code>, <code>zigbeeStatus</code>, <code>zwaveStatus</code>, and <code>ttsFriendly</code>.</p>
+</details><details>
+<summary><b>Sample — /hub/messages</b></summary><pre><code class="language-json">{
+  &quot;messages&quot;: [],
+  &quot;mode&quot;: {&quot;locationId&quot;: 1, &quot;id&quot;: 2, &quot;icon&quot;: &quot;fa-sunset&quot;, &quot;name&quot;: &quot;Evening&quot;},
+  &quot;hsm&quot;: null,
+  &quot;hsmAlert&quot;: null
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hubStatus</b></summary><pre><code class="language-json">{
+  &quot;serverInitPercentage&quot;: &quot;Initializing Hub: 100%&quot;,
+  &quot;serverInitDetails&quot;: &quot;preparing UI&quot;,
+  &quot;status&quot;: &quot;running&quot;
+}
+</code></pre>
+</details><hr>
+<h2 id="3-hub-system-info-plain-text">3. Hub System Info (Plain Text)</h2>
+<p>Return plain text values despite <code>text/html</code> content-type headers. No auth required.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Returns</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/advanced/freeOSMemory</code></td>
+<td>Free OS memory in KB</td>
+<td><code>914716</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/freeOSMemoryHistory</code></td>
+<td>CSV: Date/time, Free OS, 5m CPU avg, Total/Free/Direct Java (~3.7 days at 5-min intervals)</td>
+<td>See below</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/freeOSMemoryLast</code></td>
+<td>Latest single row of above CSV</td>
+<td>See below</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/internalTempCelsius</code></td>
+<td>Hub temp in °C</td>
+<td><code>38.2</code> (C-8 Pro) / <code>63.0</code> (C-4)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/databaseSize</code></td>
+<td>Database size in MB</td>
+<td><code>6</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/event/limit</code></td>
+<td>Current max event count</td>
+<td><code>Maximum event count: [11]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/zipgatewayVersion</code></td>
+<td>Z-Wave gateway firmware version</td>
+<td><code>7.18.3</code> (C-8 Pro) / <code>Unsupported</code> (C-4)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/network/lanautonegconfigstatus</code></td>
+<td>LAN auto-negotiation status</td>
+<td><code>autoneg</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveVersion</code></td>
+<td>Z-Wave SDK version</td>
+<td><code>7.22</code> (C-8 Pro) / <code>No Z-Wave controller instance is available</code> (C-4 after radio cycle)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/cpuInfo</code></td>
+<td>Processor count and load average</td>
+<td><code>Processors 4 Load Average 0.15</code> — <strong>404 on C-4</strong></td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/advanced/freeOSMemoryHistory</b></summary><p><strong>C-8 Pro (6 columns):</strong></p>
+<pre><code>Date/time,Free OS,5m CPU avg,Total Java,Free Java,Direct Java
+04-12 03:20:19,1397100,0.73,134796,25508,20748
+04-12 03:25:19,1209796,1.2,174384,5897,22091
+...
+</code></pre>
+<p><strong>C-4 (5 columns — no Direct Java):</strong></p>
+<pre><code>Date/time,Free OS,5m CPU avg,Total Java,Free Java
+04-15 17:16:50,902124,1.15,221312,151339
+04-15 17:21:51,856100,0.96,221312,135291
+...
+</code></pre>
+</details><hr>
+<h2 id="4-device-endpoints">4. Device Endpoints</h2>
+<h3 id="read-only-json-data">Read-Only (JSON Data)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/device/list/data</code></td>
+<td>JSON</td>
+<td>All devices: id, label, zigbeeId, deviceTypeName, status, disabled, roomAssigned, type (sys/usr)</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/list/all/data</code></td>
+<td>JSON</td>
+<td>All devices (extended variant)</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/json/{id}</code></td>
+<td>JSON</td>
+<td>Device summary: displayName, driverType, zigbeeId, currentStates, deviceNetworkId</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/fullJson/{id}</code></td>
+<td>JSON</td>
+<td>Rich detail: apps using device, commands with arguments, dashboardTypes, scheduledJobs</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/eventsJson/{id}</code></td>
+<td>JSON</td>
+<td>Device event history: name, value, unit, source, isStateChange, date</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/listWithCapabilities/json</code></td>
+<td>JSON</td>
+<td>All devices with capability lists and temperature</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/sysDriverByIdJson/{id}</code></td>
+<td>JSON</td>
+<td>System driver metadata for a device</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/drivers</code></td>
+<td>JSON</td>
+<td>All installed drivers (system + user) with capabilities, commands, attributes</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/accessibleLinkedDevices</code></td>
+<td>JSON</td>
+<td>Hub mesh linked devices</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/availableTags</code></td>
+<td>JSON</td>
+<td>Available device tags</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/getReplacementOptions/{id}</code></td>
+<td>JSON</td>
+<td>Replacement device options</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/instructionSearch</code></td>
+<td>JSON</td>
+<td>Device instruction/pairing search</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/instructionSearch?show=all</code></td>
+<td>JSON</td>
+<td>All device instructions</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/showHubMeshToken</code></td>
+<td>JSON</td>
+<td>Current hub mesh token</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /device/json/{id}</b></summary><pre><code class="language-json">{
+  &quot;deviceTypeId&quot;: 638,
+  &quot;displayName&quot;: &quot;Elena&#39;s Table Lamp&quot;,
+  &quot;groupId&quot;: null,
+  &quot;label&quot;: &quot;Elena&#39;s Table Lamp&quot;,
+  &quot;lanId&quot;: null,
+  &quot;version&quot;: 4,
+  &quot;driverType&quot;: &quot;sys&quot;,
+  &quot;zigbeeId&quot;: &quot;B0CE18140017830B&quot;,
+  &quot;currentStates&quot;: {},
+  &quot;parentDeviceId&quot;: null,
+  &quot;name&quot;: &quot;Sengled Element Color Plus&quot;,
+  &quot;id&quot;: 2,
+  &quot;deviceNetworkId&quot;: &quot;E46D&quot;
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /device/listWithCapabilities/json</b></summary><pre><code class="language-json">[
+  {
+    &quot;id&quot;: 6,
+    &quot;label&quot;: &quot;Kitchen Outlet&quot;,
+    &quot;capabilities&quot;: [&quot;Configuration&quot;, &quot;Actuator&quot;, &quot;Refresh&quot;, &quot;PowerMeter&quot;, &quot;Outlet&quot;, &quot;Switch&quot;, &quot;Sensor&quot;],
+    &quot;temperature&quot;: null
+  }
+]
+</code></pre>
+</details><h3 id="read-only-html-pages">Read-Only (HTML Pages)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/device/list</code></td>
+<td>HTML</td>
+<td>Device list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/edit/{id}</code></td>
+<td>HTML</td>
+<td>Device edit page</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/events/{id}</code></td>
+<td>HTML</td>
+<td>Device events page</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/hubMesh</code></td>
+<td>HTML</td>
+<td>Hub mesh devices page</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/addDevice</code></td>
+<td>HTML</td>
+<td>Add device page</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/addDevice?type=zigbee</code></td>
+<td>HTML</td>
+<td>Add Zigbee device</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/addDevice?type=zwave</code></td>
+<td>HTML</td>
+<td>Add Z-Wave device</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/addDevice?type=matter</code></td>
+<td>HTML</td>
+<td>Add Matter device</td>
+</tr>
+</tbody></table>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/device/save</code></td>
+<td>POST</td>
+<td>Save device</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/update</code></td>
+<td>POST</td>
+<td>Update device</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/preference/save</code></td>
+<td>POST</td>
+<td>Save device preferences</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/runmethod</code></td>
+<td>POST (form body)</td>
+<td>Execute a device command — body: <code>id={deviceId}&amp;method={commandName}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/device/disable</code></td>
+<td>POST (form body)</td>
+<td>Disable/enable device — body: <code>id={deviceId}&amp;disable={true/false}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/device/updateLabel?id={id}&amp;label={label}</code></td>
+<td>GET → Text</td>
+<td>Update device label — <strong>returns <code>false</code> via API; may need different approach</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/device/updateRoom?id={id}&amp;room={roomId}</code></td>
+<td>GET</td>
+<td>Update device room</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/setRoom?deviceId={id}&amp;roomId={id}</code></td>
+<td>GET</td>
+<td>Set device room</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/setShowOnHome?deviceId={id}&amp;show={bool}</code></td>
+<td>GET</td>
+<td>Toggle show-on-home</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/setDefaultCurrentState?id={id}&amp;currentState={state}</code></td>
+<td>GET</td>
+<td>Set default current state</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/createVirtual?deviceTypeId={driverId}</code></td>
+<td>GET → JSON</td>
+<td>Create a virtual device — param is the numeric driver type ID from <code>/device/drivers</code>. Returns <code>{&quot;success&quot;: true, &quot;deviceId&quot;: &lt;id&gt;}</code>. <strong>Note:</strong> Using wrong param names (e.g., <code>driver=Virtual Switch</code>) returns <code>deviceId: 0</code> — always use <code>deviceTypeId</code>.</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/createLinked/{hubId}/{deviceId}</code></td>
+<td>GET</td>
+<td>Create linked device from hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/replace?oldId={id}&amp;newId={id}</code></td>
+<td>GET</td>
+<td>Replace device</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/forceDelete/{id}/json</code></td>
+<td>GET → JSON</td>
+<td><strong>Force delete device</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/device/addToMesh/{id}</code></td>
+<td>GET</td>
+<td>Add device to hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/removeFromMesh/{id}</code></td>
+<td>GET</td>
+<td>Remove device from hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/generateHubMeshToken</code></td>
+<td>GET</td>
+<td>Generate new mesh token</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/setHubMeshToken</code></td>
+<td>POST</td>
+<td>Set hub mesh token</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/hubMeshFullRefreshNow</code></td>
+<td>GET</td>
+<td>Trigger full mesh refresh</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/hubMeshReconnect</code></td>
+<td>GET</td>
+<td>Reconnect hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/setHubMeshFullRefreshInterval/{seconds}</code></td>
+<td>GET</td>
+<td>Set mesh refresh interval</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/followModes/{modeHubId}</code></td>
+<td>GET</td>
+<td>Follow modes from hub</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/migrateAllLinkedDevices?sourceHub={id}&amp;targetHub={id}</code></td>
+<td>GET</td>
+<td>Migrate all linked devices</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/zwave/deleteStatus/{id}</code></td>
+<td>GET</td>
+<td>Delete Z-Wave device status</td>
+</tr>
+</tbody></table>
+<h3 id="mqtt-device-import-250-beta">MQTT Device Import (2.5.0 beta+)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/device/mqttImport/sourcesJson</code></td>
+<td>JSON</td>
+<td>List available MQTT sources</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/mqttImport/sourceTopicsJson?{params}</code></td>
+<td>JSON</td>
+<td>List topics for a source</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/mqttImport/capabilitiesJson</code></td>
+<td>JSON</td>
+<td>Available capabilities for MQTT devices</td>
+</tr>
+<tr>
+<td>🟢 <code>/device/mqttImport/manualDeviceJson?{params}</code></td>
+<td>JSON</td>
+<td>Preview manual MQTT device creation</td>
+</tr>
+<tr>
+<td>🔴 <code>/device/mqttImport/saveManualDevice</code></td>
+<td>POST</td>
+<td>Save a manually configured MQTT device</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="5-app-code-endpoints">5. App Code Endpoints</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/app/list</code></td>
+<td>HTML</td>
+<td>App code list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/list/data</code></td>
+<td>JSON</td>
+<td>All app types: id, version, author, category, description, name, namespace, type (sys/usr)</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/list/single/data/{id}</code></td>
+<td>JSON</td>
+<td>Single app type data</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/editor/{id}</code></td>
+<td>HTML</td>
+<td>App code editor page</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/create</code></td>
+<td>HTML</td>
+<td>Create new app page</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/ajax/code?id={id}</code></td>
+<td>JSON</td>
+<td><strong>Full Groovy source code</strong> — <code>{id, name, version, source}</code>. System apps return empty <code>source</code>.</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/downloadFull/{id}</code></td>
+<td>File</td>
+<td>Download full app export</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/ruleBuilderJson/{id}</code></td>
+<td>JSON</td>
+<td>Rule builder data for an installed app</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/ruleBuilderSuggestions</code></td>
+<td>JSON</td>
+<td>Rule builder suggestions</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/saveOrUpdateJson</code></td>
+<td>POST (JSON body)</td>
+<td>Save/update app code (see notes below)</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/deleteAppType/{id}</code></td>
+<td>GET</td>
+<td>Delete app type</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/edit/deleteJson/{id}</code></td>
+<td>GET</td>
+<td>Delete app (JSON response)</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/ruleBuilderPause/{id}/true</code></td>
+<td>GET</td>
+<td>Pause a rule</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/ruleBuilderPause/{id}/false</code></td>
+<td>GET</td>
+<td>Resume a rule</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/ruleBuilderGenerateRule?{params}</code></td>
+<td>GET</td>
+<td>Generate a rule</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/createVisualRuleBuilderRule</code></td>
+<td>GET</td>
+<td>Create visual rule</td>
+</tr>
+<tr>
+<td>🔴 <code>/app/updateOAuth?{params}</code></td>
+<td>GET</td>
+<td>Update OAuth settings</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /app/ajax/code?id=139</b></summary><pre><code class="language-json">{
+  &quot;id&quot;: 139,
+  &quot;name&quot;: &quot;Zen32 LED Coordinator&quot;,
+  &quot;version&quot;: 6,
+  &quot;source&quot;: &quot;/*\n * License: MIT\n * Author: ...\n */\ndefinition(\n    name: \&quot;Zen32 LED Coordinator\&quot;,\n...&quot;
+}
+</code></pre>
+</details><blockquote>
+<p><strong><code>saveOrUpdateJson</code> — correct usage:</strong> POST with <code>Content-Type: application/json</code>. Body is a JSON object: <code>{&quot;id&quot;: null, &quot;source&quot;: &quot;&lt;groovy source&gt;&quot;, &quot;version&quot;: 1}</code>. For updates, set <code>id</code> to the existing app ID. Returns <code>{&quot;success&quot;: true, &quot;id&quot;: &lt;newId&gt;, &quot;version&quot;: &lt;ver&gt;}</code> on success. <strong>Do NOT use form-urlencoded</strong> — that returns <code>{&quot;success&quot;: false, &quot;message&quot;: &quot;Unknown error occurred&quot;}</code>. The browser UI sends this via <code>postJsonAndCallback()</code> using <code>JSON.stringify()</code>.</p>
+<p><strong>Delete endpoints:</strong> Use <code>/app/edit/deleteJson/{id}</code> for a JSON response (<code>{&quot;status&quot;: true}</code>). <code>/app/deleteAppType/{id}</code> is a separate endpoint for deleting the app type definition.</p>
+</blockquote>
+<hr>
+<h2 id="6-driver-code-endpoints">6. Driver Code Endpoints</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/driver/list</code></td>
+<td>HTML</td>
+<td>Driver code list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/list/data</code></td>
+<td>JSON</td>
+<td>All driver types: id, version, name, namespace, author, type (sys/usr), category</td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/list/single/data/{id}</code></td>
+<td>JSON</td>
+<td>Single driver type data</td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/editor/{id}</code></td>
+<td>HTML</td>
+<td>Driver code editor page</td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/create</code></td>
+<td>HTML</td>
+<td>Create new driver page</td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/ajax/code?id={id}</code></td>
+<td>JSON</td>
+<td><strong>Full Groovy source code</strong> — system drivers return empty <code>source</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/driver/downloadFull/{id}</code></td>
+<td>File</td>
+<td>Download full driver export</td>
+</tr>
+<tr>
+<td>🔴 <code>/driver/saveOrUpdateJson</code></td>
+<td>POST (JSON body)</td>
+<td>Save/update driver code (same JSON body format as app version — see app section notes)</td>
+</tr>
+<tr>
+<td>🔴 <code>/driver/deleteDeviceType/{id}</code></td>
+<td>GET</td>
+<td>Delete driver type</td>
+</tr>
+<tr>
+<td>🔴 <code>/driver/editor/deleteJson/{id}</code></td>
+<td>GET</td>
+<td>Delete driver (JSON response)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="7-installed-app-endpoints">7. Installed App Endpoints</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/installedapp/list</code></td>
+<td>HTML</td>
+<td>Installed apps page. In 2.5.0+: <code>?section=apps</code>, <code>?section=automations</code>, <code>?section=integrations</code> filter by category</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/list/data</code></td>
+<td>JSON</td>
+<td>All installed app instances with full metadata and appType info</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/statusJson/{id}</code></td>
+<td>JSON</td>
+<td><strong>Richest installed app endpoint</strong> — includes appSettings (with device lists, booleans, enums), appState (including OAuth access tokens), event subscriptions, scheduled jobs, child apps/devices</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/json/{id}</code></td>
+<td>JSON</td>
+<td>Installed app JSON</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/eventsJson/{id}</code></td>
+<td>JSON</td>
+<td>Installed app events as JSON</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/sysAppByIdJson/{id}</code></td>
+<td>JSON</td>
+<td>System app info by ID</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/configure/{id}</code></td>
+<td>HTML</td>
+<td>App configuration page</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/configure/{id}?embed=true</code></td>
+<td>HTML</td>
+<td>Embedded app config</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/events/{id}</code></td>
+<td>HTML</td>
+<td>App events page</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/status/{id}</code></td>
+<td>HTML</td>
+<td>App status page</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/sysApp/{appName}</code></td>
+<td>HTML</td>
+<td>System app shortcut (URL-encoded name)</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/sysAppApi/appCloner/app/0</code></td>
+<td>JSON</td>
+<td>App cloner API (list all)</td>
+</tr>
+<tr>
+<td>🟢 <code>/installedapp/sysAppApi/appCloner/app/{id}</code></td>
+<td>JSON</td>
+<td>Clone specific app info</td>
+</tr>
+</tbody></table>
+<p><strong>Redirects:</strong></p>
+<ul>
+<li><code>/installedapp/direct/hubVariables</code> → Hub variables page</li>
+<li><code>/installedapp/direct/swapDevice</code> → Swap device page</li>
+<li><code>/app/hubitatSafetyMonitor</code> → HSM page</li>
+</ul>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/installedapp/create/{appTypeId}</code></td>
+<td>GET</td>
+<td>Install/create app instance</td>
+</tr>
+<tr>
+<td>🔴 <code>/installedapp/delete/{id}</code></td>
+<td>GET</td>
+<td>Delete installed app</td>
+</tr>
+<tr>
+<td>🔴 <code>/installedapp/forcedelete/{id}/quiet</code></td>
+<td>GET</td>
+<td>Force-delete installed app</td>
+</tr>
+<tr>
+<td>🔴 <code>/installedapp/disable</code></td>
+<td>POST (form body)</td>
+<td>Disable/enable installed app</td>
+</tr>
+<tr>
+<td>🔴 <code>/appui/clearEmptyBasicRules</code></td>
+<td>GET</td>
+<td>Clear empty basic rules</td>
+</tr>
+<tr>
+<td>🔴 <code>/appui/createBasicRulesChild</code></td>
+<td>GET</td>
+<td>Create basic rules child app</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="8-hub2-api-modern-ui-data">8. hub2/ API (Modern UI Data)</h2>
+<p>The <code>hub2/</code> endpoints power the modern Hubitat web interface. They return rich JSON data and are the best source for getting comprehensive device, room, and hub information. &quot;hub2&quot; refers to the second-generation UI framework (built with <strong>Vue.js</strong>, a JavaScript framework for web apps). All endpoints return JSON.</p>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub2/hubData?t={timestamp}</code></td>
+<td>JSON</td>
+<td>Comprehensive hub data: alerts, model, version, IP, all alert flags, safeMode, showDeveloperMenu, freshDatabase</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/appsList</code></td>
+<td>JSON</td>
+<td>All available app types (system built-in apps)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/devicesList</code></td>
+<td>JSON</td>
+<td>All devices as tree (parent/child) with current states, rooms, protocol info, dashboard types, tags, notes — richest device endpoint</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/roomsList</code></td>
+<td>JSON</td>
+<td>Tree structure: rooms containing their devices with full state. Room ID 999999 = &quot;Unassigned&quot;</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/roomsList?includeDevices=false&amp;includeFavorites=true</code></td>
+<td>JSON</td>
+<td>Rooms variant — <code>includeDevices=false</code> may not take effect on older firmware</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/hubMeshJson</code></td>
+<td>JSON</td>
+<td>Hub mesh config: hubList, sharedDevices, token, enabled, refresh interval</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/localBackups</code></td>
+<td>JSON</td>
+<td>Local backup files with hubUID, version, size, creation time</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/cloudBackups?force={bool}</code></td>
+<td>JSON</td>
+<td>Cloud backup list with entitlement info</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/backup/json</code></td>
+<td>JSON</td>
+<td>Backup schedule: frequency, cleanup time, cloud entitlements, password status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/networkConfiguration</code></td>
+<td>JSON</td>
+<td>Full network config: static IP, gateway, subnet, DNS, WiFi, LAN auto-neg, useDNSFallover, hasEthernet, hasWiFi, restartBonjourOnSchedule</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/suggestedIntegrations</code></td>
+<td>JSON</td>
+<td>Auto-discovered integrations (Matter, HomeKit, Chromecast) with IPs</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/userAppTypes</code></td>
+<td>JSON</td>
+<td>User-installed app types with which instances use them</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/userDeviceTypes</code></td>
+<td>JSON</td>
+<td>User-installed driver types with capabilities and which devices use them</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/userLibraries</code></td>
+<td>JSON</td>
+<td>User libraries</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/userBundles</code></td>
+<td>JSON</td>
+<td>User bundles</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub2/availableWiFiNetworks?reload={bool}</code></td>
+<td>JSON</td>
+<td>Visible WiFi SSIDs</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub2/devicesList (abbreviated)</b></summary><pre><code class="language-json">{
+  &quot;suggestBackup&quot;: false,
+  &quot;devices&quot;: [{
+    &quot;key&quot;: &quot;DEV-6&quot;,
+    &quot;data&quot;: {
+      &quot;id&quot;: 6,
+      &quot;name&quot;: &quot;Generic Zigbee Outlet&quot;,
+      &quot;secondaryName&quot;: &quot;&quot;,
+      &quot;type&quot;: &quot;Generic Zigbee Outlet&quot;,
+      &quot;source&quot;: &quot;sys&quot;,
+      &quot;dni&quot;: &quot;124F&quot;,
+      &quot;zigbeeId&quot;: &quot;00124B00251B581C&quot;,
+      &quot;lastActivity&quot;: &quot;2026-04-16T01:20:50+0000&quot;,
+      &quot;disabled&quot;: false,
+      &quot;roomId&quot;: 2,
+      &quot;roomName&quot;: &quot;Kitchen&quot;,
+      &quot;currentStates&quot;: [{&quot;value&quot;: &quot;off&quot;, &quot;key&quot;: &quot;switch&quot;}],
+      &quot;hubMesh&quot;: false,
+      &quot;homekit&quot;: false,
+      &quot;showOnHome&quot;: false,
+      &quot;deviceTypeId&quot;: 124
+    }
+  }]
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hub2/roomsList (abbreviated)</b></summary><pre><code class="language-json">{
+  &quot;roomNodes&quot;: [{
+    &quot;key&quot;: &quot;ROOM-2&quot;,
+    &quot;data&quot;: {&quot;id&quot;: 2, &quot;name&quot;: &quot;Kitchen&quot;, &quot;type&quot;: &quot;Room&quot;},
+    &quot;children&quot;: [{
+      &quot;key&quot;: &quot;DEV-6&quot;,
+      &quot;data&quot;: {&quot;id&quot;: 6, &quot;name&quot;: &quot;Kitchen Outlet&quot;, &quot;currentStates&quot;: [{&quot;value&quot;: &quot;off&quot;, &quot;key&quot;: &quot;switch&quot;}]}
+    }]
+  }]
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hub2/backup/json</b></summary><pre><code class="language-json">{
+  &quot;databaseCleanupTimeHour&quot;: 2,
+  &quot;localBackupFrequency&quot;: 1,
+  &quot;cloudBackupFrequency&quot;: 1,
+  &quot;lastCloudBackupSuccess&quot;: true,
+  &quot;hasCloudBackupEntitlements&quot;: true,
+  &quot;hasCloudRestoreEntitlements&quot;: true,
+  &quot;hasC8ProMigrationEntitlements&quot;: true,
+  &quot;backupPassword&quot;: null,
+  &quot;freshDatabase&quot;: false
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hub2/networkConfiguration</b></summary><pre><code class="language-json">{
+  &quot;usingStaticIP&quot;: false,
+  &quot;staticIP&quot;: &quot;&quot;,
+  &quot;staticGateway&quot;: &quot;&quot;,
+  &quot;staticSubnetMask&quot;: &quot;&quot;,
+  &quot;staticNameServers&quot;: [],
+  &quot;dhcpNameServers&quot;: [&quot;192.168.1.1&quot;],
+  &quot;dnsServers&quot;: [&quot;192.168.1.1&quot;],
+  &quot;lanAddr&quot;: &quot;192.168.1.100&quot;,
+  &quot;wlanAddr&quot;: null,
+  &quot;lanAutoneg&quot;: &quot;autoneg&quot;,
+  &quot;hasEthernet&quot;: true,
+  &quot;wifiDriversInstalled&quot;: true
+}
+</code></pre>
+</details><h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub2/setSetting/chatbot/{bool}</code></td>
+<td>GET</td>
+<td>Toggle chatbot</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/setSetting/developerMenu/{bool}</code></td>
+<td>GET</td>
+<td>Toggle developer menu</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/setSetting/excludeVirtualDevicesFromSummary/{bool}</code></td>
+<td>GET</td>
+<td>Toggle virtual device exclusion</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/setSetting/includeHiddenDevicesInSummary/{bool}</code></td>
+<td>GET</td>
+<td>Toggle hidden devices</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/addVarToMesh/{name}</code></td>
+<td>GET</td>
+<td>Add variable to hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/removeVarFromMesh/{name}</code></td>
+<td>GET</td>
+<td>Remove variable from hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/createLinkedHubVar/{hubId}/{name}</code></td>
+<td>GET</td>
+<td>Create linked hub variable</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/updateLinkedHubVar/{params}</code></td>
+<td>GET</td>
+<td>Update linked hub variable</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/ignoreFoundDevice?{params}</code></td>
+<td>GET</td>
+<td>Ignore a discovered device</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/updateBackupSchedule</code></td>
+<td>POST</td>
+<td>Update backup schedule</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/uploadBackup</code></td>
+<td>POST</td>
+<td>Upload backup file (multipart)</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/restoreUploadedBackup</code></td>
+<td>GET</td>
+<td>Restore uploaded backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/restoreLocalBackup?{params}</code></td>
+<td>GET</td>
+<td>Restore local backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/restoreCloudBackup?{params}</code></td>
+<td>GET</td>
+<td>Restore cloud backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/deleteLocalBackup?{params}</code></td>
+<td>GET</td>
+<td>Delete local backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/deleteCloudBackup?{params}</code></td>
+<td>GET</td>
+<td>Delete cloud backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/zwave/nodeReplace</code></td>
+<td>GET</td>
+<td>Z-Wave node replace</td>
+</tr>
+</tbody></table>
+<h3 id="hub-variable-mesh-sharing-250-beta">Hub Variable Mesh Sharing (2.5.0 beta+)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub2/addVarToMesh</code></td>
+<td>GET</td>
+<td>Share a hub variable to hub mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/removeVarFromMesh</code></td>
+<td>GET</td>
+<td>Remove a hub variable from mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/createLinkedHubVar/{hubId}/{varName}</code></td>
+<td>GET</td>
+<td>Create a linked hub variable from mesh</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub2/updateLinkedHubVar/{hubId}/{varName}</code></td>
+<td>GET</td>
+<td>Update a linked hub variable</td>
+</tr>
+</tbody></table>
+<h3 id="other-new-hub2-endpoints-250-beta">Other New hub2/ Endpoints (2.5.0 beta+)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub2/ignoreFoundDevice?{params}</code></td>
+<td>GET</td>
+<td>Dismiss a discovered device from the &quot;Connect Devices&quot; banner</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="9-location-amp-modes">9. Location &amp; Modes</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/location/list/data</code></td>
+<td>JSON</td>
+<td>Location: name, temperatureScale, timeZone, zipCode, lat, lon, sunrise, sunset, currentMode</td>
+</tr>
+<tr>
+<td>🟢 <code>/location/data</code></td>
+<td>JSON</td>
+<td>Same plus modes list and hubs array</td>
+</tr>
+<tr>
+<td>🟢 <code>/location/zipcodelookup/{zipcode}</code></td>
+<td>JSON</td>
+<td>Zip code lookup</td>
+</tr>
+<tr>
+<td>🟢 <code>/modes/json</code></td>
+<td>JSON</td>
+<td>All modes with trigger conditions, currentModeId, mode manager config</td>
+</tr>
+<tr>
+<td>🟢 <code>/modes/list/json</code></td>
+<td>JSON</td>
+<td>Simple list: <code>[{id, label}]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/modes/easyModeManager/json</code></td>
+<td>JSON</td>
+<td>Detailed mode transition rules with trigger types and conditions</td>
+</tr>
+<tr>
+<td>🟢 <code>/modes/edit</code></td>
+<td>HTML</td>
+<td>Mode editor page</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /modes/json</b></summary><pre><code class="language-json">{
+  &quot;modes&quot;: [
+    {&quot;id&quot;: 1, &quot;name&quot;: &quot;Day&quot;, &quot;icon&quot;: &quot;fa-sun&quot;, &quot;conditions&quot;: [&quot;At &lt;b&gt;15 minutes&lt;/b&gt; after sunrise&quot;]},
+    {&quot;id&quot;: 2, &quot;name&quot;: &quot;Evening&quot;, &quot;icon&quot;: &quot;fa-sunset&quot;, &quot;conditions&quot;: [&quot;At &lt;b&gt;15 minutes&lt;/b&gt; after sunset&quot;]},
+    {&quot;id&quot;: 3, &quot;name&quot;: &quot;Night&quot;, &quot;icon&quot;: &quot;fa-moon&quot;, &quot;conditions&quot;: [&quot;When time of day is &lt;b&gt;9:30 pm&lt;/b&gt;&quot;]},
+    {&quot;id&quot;: 4, &quot;name&quot;: &quot;Away&quot;, &quot;icon&quot;: &quot;fa-plane-departure&quot;, &quot;conditions&quot;: []}
+  ],
+  &quot;currentModeId&quot;: 2,
+  &quot;selectedModeManager&quot;: &quot;builtIn&quot;,
+  &quot;modeManagerAppId&quot;: 0,
+  &quot;easyModeManagerAppId&quot;: 61
+}
+</code></pre>
+</details><h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/location/mode/update</code></td>
+<td>POST</td>
+<td>Change the current mode — <strong>returns 500 via direct API call; may require session state</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/location/update</code></td>
+<td>POST (form body)</td>
+<td>Update location settings — body: <code>city=X&amp;state=X&amp;timeZone=X&amp;temperatureScale=F</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/location/updateTimeJson</code></td>
+<td>POST → JSON</td>
+<td>Update time settings — <strong>404 on firmware 2.4.3</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/modes/jsonCreate</code></td>
+<td>POST (JSON body) → JSON</td>
+<td>Create a new mode — body: <code>{&quot;name&quot;:&quot;ModeName&quot;}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/modes/jsonUpdate</code></td>
+<td>POST (JSON body) → JSON</td>
+<td>Update a mode — body: <code>{&quot;id&quot;:1,&quot;name&quot;:&quot;NewName&quot;}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/modes/jsonDelete/{modeId}</code></td>
+<td>GET → JSON</td>
+<td>Delete a mode (cannot delete active mode)</td>
+</tr>
+<tr>
+<td>🔴 <code>/modes/setModeManager/{appId}</code></td>
+<td>GET</td>
+<td>Set mode manager app</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Content-Type matters:</strong> <code>/modes/jsonCreate</code> and <code>/modes/jsonUpdate</code> <strong>require</strong> <code>Content-Type: application/json</code> with a JSON body like <code>{&quot;name&quot;:&quot;MyMode&quot;,&quot;icon&quot;:&quot;fa-flask&quot;}</code>. Using form-urlencoded silently fails with <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;Internal error&quot;}</code>. Icons use FontAwesome class names (e.g., <code>fa-sun</code>, <code>fa-moon</code>, <code>fa-plane-departure</code>).</p>
+</blockquote>
+<hr>
+<h2 id="10-rooms">10. Rooms</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/room/list</code></td>
+<td>HTML</td>
+<td>Room list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/room/listRoomNamesJson</code></td>
+<td>JSON</td>
+<td>Room name strings: <code>[&quot;Attic&quot;, &quot;Kitchen&quot;, ...]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/room/listRoomsJson</code></td>
+<td>JSON</td>
+<td>Rooms with IDs: <code>[{id, name}]</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/room/save</code></td>
+<td>POST (form body)</td>
+<td>Save/create room — <strong>returns 500 via direct API; see notes below</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/room/delete/{roomId}</code></td>
+<td>GET</td>
+<td>Delete room</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Room creation gotcha:</strong> <code>/room/save</code> returns 500 with form-urlencoded body. With <code>Content-Type: application/json</code> and <code>{&quot;name&quot;:&quot;TestRoom&quot;}</code>, it returns <code>{&quot;roomId&quot;:null,&quot;error&quot;:&quot;Invalid room id&quot;}</code>. Room creation via the direct API may require additional fields or session state not available outside the browser UI.</p>
+</blockquote>
+<hr>
+<h2 id="11-logs">11. Logs</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/logs</code></td>
+<td>HTML</td>
+<td>Live logs page</td>
+</tr>
+<tr>
+<td>🟢 <code>/logs?tab=past</code></td>
+<td>HTML</td>
+<td>Past logs page</td>
+</tr>
+<tr>
+<td>🟢 <code>/logs/json</code></td>
+<td>JSON</td>
+<td>Device statistics dashboard: event counts, state sizes, uptime, devicesUptime, cloud call counts, hub action counts</td>
+</tr>
+<tr>
+<td>🟢 <code>/logs/eventsJson</code></td>
+<td>JSON</td>
+<td>Location-level events (sunrise/sunset, mode changes, etc.)</td>
+</tr>
+<tr>
+<td>🟢 <code>/logs/past/json</code></td>
+<td>JSON</td>
+<td>Past log entries as tab-delimited strings: <code>{timestamp}\t{LEVEL}\t{source}|{id}|{name}|{message}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/logs/past/json?type=dev&amp;id={deviceId}</code></td>
+<td>JSON</td>
+<td>Past logs filtered by source type (<code>dev</code>, <code>app</code>, <code>sys</code>) and ID</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/eventsJson</code></td>
+<td>JSON</td>
+<td>Hub-level events (systemStart, etc.)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeLogs</code></td>
+<td>HTML</td>
+<td>Zigbee log viewer</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveLogs</code></td>
+<td>HTML</td>
+<td>Z-Wave log viewer</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/loggerlist</code></td>
+<td>HTML</td>
+<td>Logger configuration page</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /logs/json (device statistics, not log lines)</b></summary><pre><code class="language-json">{
+  &quot;maxEvents&quot;: 500,
+  &quot;maxStates&quot;: &quot;100&quot;,
+  &quot;uptime&quot;: &quot;2 days 14 hours&quot;,
+  &quot;deviceStats&quot;: [{
+    &quot;id&quot;: 6,
+    &quot;name&quot;: &quot;Kitchen Outlet&quot;,
+    &quot;total&quot;: 42,
+    &quot;stateSize&quot;: 1024,
+    &quot;average&quot;: 2.1,
+    &quot;pct&quot;: 0.5,
+    &quot;eventsCount&quot;: 42,
+    &quot;statesCount&quot;: 8
+  }]
+}
+</code></pre>
+</details><details>
+<summary><b>Sample — /hub/eventsJson</b></summary><pre><code class="language-json">[{
+  &quot;id&quot;: 393346,
+  &quot;source&quot;: &quot;HUB&quot;,
+  &quot;name&quot;: &quot;systemStart&quot;,
+  &quot;value&quot;: &quot;2.4.4.156&quot;,
+  &quot;descriptionText&quot;: &quot;System startup with build: 2.4.4.156&quot;
+}]
+</code></pre>
+</details><hr>
+<h2 id="12-dashboard-endpoints">12. Dashboard Endpoints</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/dashboard/all</code></td>
+<td>JSON</td>
+<td>All <strong>legacy</strong> dashboards (does not include Easy Dashboards)</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/all?pinToken={token}</code></td>
+<td>JSON</td>
+<td>All dashboards with PIN auth</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/devices</code></td>
+<td>JSON</td>
+<td>All devices with current attributes, room, protocol, dashboard types, retry config</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/select</code></td>
+<td>HTML</td>
+<td>Dashboard selector</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/mobileDevicesUI?showEdit=false</code></td>
+<td>HTML</td>
+<td>Mobile devices UI</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/mobileFavoritesUI?showEdit=false</code></td>
+<td>HTML</td>
+<td>Mobile favorites UI</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/ui/{id}</code></td>
+<td>Redirect</td>
+<td>Dashboard UI</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/room/{id}</code></td>
+<td>Redirect</td>
+<td>Room dashboard</td>
+</tr>
+<tr>
+<td>🟢 <code>/dashboard/menu</code></td>
+<td>Redirect</td>
+<td>Dashboard menu</td>
+</tr>
+</tbody></table>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/dashboard/create?name={name}&amp;type=easy</code></td>
+<td>GET → JSON</td>
+<td>Create Easy Dashboard (returns <code>{success, id}</code> — id is an installed app ID)</td>
+</tr>
+<tr>
+<td>🔴 <code>/dashboard/update?id={id}&amp;name={name}</code></td>
+<td>GET → JSON</td>
+<td>Update/rename dashboard</td>
+</tr>
+<tr>
+<td>🔴 <code>/dashboard/delete?id={id}</code></td>
+<td>GET → JSON</td>
+<td>Delete dashboard — <strong>returns <code>success:false</code> for Easy Dashboards</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/dashboard/cloneAsEasy/{id}</code></td>
+<td>GET → JSON</td>
+<td>Clone dashboard — <strong>returns <code>success:false</code> if source has no tiles</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/dashboard/setGenerateForRooms/{bool}</code></td>
+<td>GET</td>
+<td>Toggle room dashboard auto-generation (verified via <code>/hub2/hubData</code> <code>maintainRoomDashboards</code> field)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Easy vs Legacy dashboards:</strong> <code>/dashboard/create?type=easy</code> creates an Easy Dashboard as an installed app instance. These dashboards do <strong>not</strong> appear in <code>/dashboard/all</code> (which only lists legacy/classic dashboards). Easy Dashboards are managed via <code>/installedapp/*</code> endpoints instead. Delete and clone operations may return <code>success:false</code> for Easy Dashboards.</p>
+</blockquote>
+<hr>
+<h2 id="13-libraries-amp-bundles">13. Libraries &amp; Bundles</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/library/list</code></td>
+<td>HTML</td>
+<td>Library list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/library/list/single/data/{id}</code></td>
+<td>JSON</td>
+<td>Single library data</td>
+</tr>
+<tr>
+<td>🟢 <code>/library/editor/{id}</code></td>
+<td>HTML</td>
+<td>Library code editor</td>
+</tr>
+<tr>
+<td>🔴 <code>/library/create</code></td>
+<td>HTML</td>
+<td>Create library page</td>
+</tr>
+<tr>
+<td>🔴 <code>/library/saveOrUpdateJson</code></td>
+<td>POST (JSON body)</td>
+<td>Save/update library (same JSON body format as app/driver). <strong>Library names must consist of letters, numbers, underscores, dashes, and dots only — no spaces.</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/library/deleteLibrary/{id}</code></td>
+<td>GET</td>
+<td>Delete library</td>
+</tr>
+<tr>
+<td>🔴 <code>/library/edit/deleteJson/{id}</code></td>
+<td>GET</td>
+<td>Delete library (JSON response)</td>
+</tr>
+<tr>
+<td>🟢 <code>/bundle/list</code></td>
+<td>HTML</td>
+<td>Bundle list page</td>
+</tr>
+<tr>
+<td>🟢 <code>/bundle/editor/{id}</code></td>
+<td>HTML</td>
+<td>Bundle editor</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle/create</code></td>
+<td>HTML</td>
+<td>Create bundle page</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle/deleteJson/{id}</code></td>
+<td>GET</td>
+<td>Delete bundle</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle/deleteJson/{id}?full=true</code></td>
+<td>GET</td>
+<td>Full delete bundle (removes apps/drivers too)</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle2/uploadZip</code></td>
+<td>POST (multipart)</td>
+<td>Upload bundle zip file</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle2/uploadZipFromUrl?{params}</code></td>
+<td>GET</td>
+<td>Upload bundle from URL</td>
+</tr>
+<tr>
+<td>🔴 <code>/bundle2/processUploadedZip</code></td>
+<td>POST</td>
+<td>Process uploaded zip</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="14-zigbee-management">14. Zigbee Management</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/zigbeeInfo</code></td>
+<td>HTML</td>
+<td>Zigbee info page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeInfo/status</code></td>
+<td>JSON</td>
+<td>Zigbee radio status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeDetails/json</code></td>
+<td>JSON</td>
+<td>Zigbee device details: channel, panId, enabled, networkState, devices with message counts, LQI</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeGraph</code></td>
+<td>HTML</td>
+<td>Zigbee mesh graph visualization</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeLogs</code></td>
+<td>HTML</td>
+<td>Zigbee logs page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbee/getChildAndRouteInfoJson</code></td>
+<td>JSON</td>
+<td>Mesh topology: children, neighbors (LQI, cost), routes</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbee/getChildAndRouteInfo</code></td>
+<td>Text</td>
+<td>Same data, human-readable format</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zigbeeChannelScanJson</code></td>
+<td>JSON</td>
+<td>Channel scan results — array of <code>{panId, lastHopRssi, stackProfile, lastHopLqi, extendedPanId, nwkUpdateId, channel, allowingJoin}</code> (must run scan first)</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/zigbeeDetails/json (abbreviated)</b></summary><pre><code class="language-json">{
+  &quot;channel&quot;: 25,
+  &quot;panId&quot;: &quot;37D5&quot;,
+  &quot;extendedPanId&quot;: &quot;287681FFFED3D062&quot;,
+  &quot;weakChannel&quot;: false,
+  &quot;enabled&quot;: true,
+  &quot;networkState&quot;: &quot;ONLINE&quot;,
+  &quot;inJoinMode&quot;: false,
+  &quot;firmwareUpdateInProgress&quot;: false,
+  &quot;firmwareUpdateAvailable&quot;: false,
+  &quot;channels&quot;: [11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26],
+  &quot;showPowerSelection&quot;: false,
+  &quot;powerLevel&quot;: 8,
+  &quot;powerLevels&quot;: [8],
+  &quot;showReboot&quot;: false,
+  &quot;showRebuild&quot;: false,
+  &quot;showRebuildNetworkOnReboot&quot;: false,
+  &quot;rebuildNetworkOnReboot&quot;: false,
+  &quot;showInactiveDevicePing&quot;: false,
+  &quot;inactiveDevicePingEnabled&quot;: false,
+  &quot;healthy&quot;: true,
+  &quot;devices&quot;: [{
+    &quot;id&quot;: 6,
+    &quot;name&quot;: &quot;Kitchen Outlet&quot;,
+    &quot;type&quot;: &quot;Router&quot;,
+    &quot;lastMessage&quot;: &quot;2026-04-16T01:20:50+0000&quot;,
+    &quot;ping&quot;: true,
+    &quot;messageCount&quot;: 1542,
+    &quot;shortZigbeeId&quot;: &quot;124F&quot;,
+    &quot;zigbeeId&quot;: &quot;00124B00251B581C&quot;
+  }]
+}
+</code></pre>
+<p>When the Zigbee radio is <strong>disabled</strong>, the <code>channel</code>, <code>panId</code>, <code>extendedPanId</code>, and <code>weakChannel</code> fields are <strong>omitted</strong> from the response, and <code>networkState</code> changes to <code>&quot;DISABLED&quot;</code>.</p>
+</details><details>
+<summary><b>Sample — /hub/zigbee/getChildAndRouteInfoJson</b></summary><pre><code class="language-json">{
+  &quot;children&quot;: [
+    {&quot;id&quot;: &quot;6373&quot;, &quot;type&quot;: &quot;EMBER_SLEEPY_END_DEVICE&quot;}
+  ],
+  &quot;neighbors&quot;: [
+    {&quot;id&quot;: &quot;0A29&quot;, &quot;lqi&quot;: 154, &quot;age&quot;: 4, &quot;inCost&quot;: 1, &quot;outCost&quot;: 1},
+    {&quot;id&quot;: &quot;124F&quot;, &quot;lqi&quot;: 138, &quot;age&quot;: 4, &quot;inCost&quot;: 1, &quot;outCost&quot;: 2}
+  ]
+}
+</code></pre>
+</details><h3 id="action-endpoints">Action Endpoints</h3>
+<details>
+<summary><b>Sample — /hub/zigbeeChannelScanJson (one entry)</b></summary><pre><code class="language-json">{
+  &quot;panId&quot;: &quot;2AB3&quot;,
+  &quot;lastHopRssi&quot;: -48,
+  &quot;stackProfile&quot;: 2,
+  &quot;lastHopLqi&quot;: 255,
+  &quot;extendedPanId&quot;: &quot;B3EAED0100810700&quot;,
+  &quot;nwkUpdateId&quot;: 0,
+  &quot;channel&quot;: 11,
+  &quot;allowingJoin&quot;: false
+}
+</code></pre>
+<p>Multiple networks can appear on the same channel. Channels with no detected network have null <code>panId</code>/<code>extendedPanId</code> and 0 RSSI/LQI.</p>
+</details><table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/zigbee/enable/true</code></td>
+<td>GET</td>
+<td>Enable Zigbee radio</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/enable/false</code></td>
+<td>GET</td>
+<td>Disable Zigbee radio</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbeeChannelScan</code></td>
+<td>GET → JSON</td>
+<td>Start a Zigbee channel scan</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/updateChannelAndPower?{params}</code></td>
+<td>GET</td>
+<td>Update Zigbee channel and TX power</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/updatePingDevice/{id}/{bool}</code></td>
+<td>GET</td>
+<td>Toggle Zigbee device ping</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/updateSettings?{params}</code></td>
+<td>GET</td>
+<td>Update Zigbee settings</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/rebootZigbeeRadio</code></td>
+<td>GET</td>
+<td>⚠️ Reboot the Zigbee radio — <strong>on C-4, triggers a full hub restart</strong> (not just a radio reboot).</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/rebuildZigbeeNetwork</code></td>
+<td>GET</td>
+<td>⚠️ Rebuild entire Zigbee mesh — <strong>on C-4, triggers full hub restart</strong>.</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/reset</code></td>
+<td>GET</td>
+<td>⚠️ <strong>Reset the Zigbee stack</strong> — returns HTTP 200. Radio stays enabled but network parameters may be reset.</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zigbee/updateFirmware/latest</code></td>
+<td>GET</td>
+<td>⚠️ Update Zigbee firmware</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/searchZigbeeDevices/{type}</code></td>
+<td>GET → JSON</td>
+<td>Start Zigbee device search (status: <code>{deviceMap, initMap, reconfiguredDevices}</code>)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong><code>/hub/stopJoin</code></strong> is a universal endpoint that stops both Zigbee and Z-Wave join/discovery modes.</p>
+</blockquote>
+<hr>
+<h2 id="15-z-wave-management">15. Z-Wave Management</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/zwaveInfo</code></td>
+<td>HTML</td>
+<td>Z-Wave info page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveInfo?fwupdate=true</code></td>
+<td>HTML</td>
+<td>Z-Wave firmware update info</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveDetails/json</code></td>
+<td>JSON</td>
+<td>Z-Wave radio status, all paired devices keyed by node ID</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveGraph</code></td>
+<td>HTML</td>
+<td>Z-Wave mesh graph visualization</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveTopology</code></td>
+<td>HTML</td>
+<td>Z-Wave topology page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveLogs</code></td>
+<td>HTML</td>
+<td>Z-Wave logs page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveVersion</code></td>
+<td>Text</td>
+<td>Z-Wave SDK version</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/getChildAndRouteInfoJson</code></td>
+<td>JSON</td>
+<td>Z-Wave child/route info</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/searchZwaveDevices</code></td>
+<td>JSON</td>
+<td>Z-Wave search/inclusion status: <code>{deviceMap, initMap, userRequest}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveExclude/status</code></td>
+<td>JSON</td>
+<td>Exclusion mode status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwaveRepair2Status</code></td>
+<td>JSON</td>
+<td>Repair v2 status: <code>{stage, html}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/checkZwaveRepairRunning</code></td>
+<td>JSON</td>
+<td><code>{isZWaveNetworkHealRunning: &quot;true&quot;/&quot;false&quot;}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/nodeReplace/status</code></td>
+<td>JSON</td>
+<td>Node replace status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/nodeReplace/info</code></td>
+<td>HTML</td>
+<td>Node replace info (HTML page, not JSON)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/updateHubFirmwareStatus</code></td>
+<td>JSON</td>
+<td>Firmware update progress</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/resetJson</code></td>
+<td>JSON</td>
+<td><strong>Triggers Z-Wave controller reset</strong> — returns <code>true</code> on success. Resets the Z-Wave radio to factory defaults. Despite being a GET, this is destructive.</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/securityKeys</code></td>
+<td>HTML</td>
+<td>Z-Wave security keys page (HTML, not JSON)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/securityCode</code></td>
+<td>HTML</td>
+<td>Z-Wave DSK code page (HTML, not JSON)</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/zwaveDetails/json (abbreviated)</b></summary><pre><code class="language-json">{
+  &quot;showSecureJoin&quot;: true,
+  &quot;showRegion&quot;: false,
+  &quot;secureJoin&quot;: 0,
+  &quot;zwaveIP&quot;: false,
+  &quot;zwaveJSAvailable&quot;: false,
+  &quot;zwaveJS&quot;: false,
+  &quot;enabled&quot;: true,
+  &quot;isRadioUpdateNeeded&quot;: false,
+  &quot;healthy&quot;: true,
+  &quot;updateInProgress&quot;: false,
+  &quot;zwDevices&quot;: {
+    &quot;23&quot;: {
+      &quot;displayName&quot;: &quot;Front Lights&quot;,
+      &quot;label&quot;: &quot;Front Lights&quot;,
+      &quot;driverType&quot;: &quot;sys&quot;,
+      &quot;name&quot;: &quot;Generic Z-Wave CentralScene Switch&quot;,
+      &quot;id&quot;: 23,
+      &quot;deviceNetworkId&quot;: &quot;17&quot;
+    }
+  },
+  &quot;nodes&quot;: [{
+    &quot;nodeId&quot;: 1, &quot;manufacturer&quot;: 0, &quot;router&quot;: false,
+    &quot;listening&quot;: false, &quot;security&quot;: false, &quot;beaming&quot;: false,
+    &quot;lastSent&quot;: null, &quot;lastReceived&quot;: null, &quot;nodeState&quot;: &quot;ALIVE&quot;,
+    &quot;deviceType&quot;: 1, &quot;deviceId&quot;: null, &quot;msgCount&quot;: 0,
+    &quot;supportedCommandClasses&quot;: &quot;[:]&quot;, &quot;init&quot;: true
+  }]
+}
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li><code>zwDevices</code> is an object keyed by Z-Wave node ID (string), not an array</li>
+<li><code>secureJoin</code> values: 0=no security, 1=S0, 2=S2</li>
+<li><code>zwaveJS=false</code> on C-4 confirms legacy Z-Wave stack</li>
+<li>When disabled, <code>nodes</code> array is empty and <code>enabled=false</code></li>
+<li>Node 1 is always the hub&#39;s own Z-Wave controller</details></li>
+</ul>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/zwave/enable/true</code></td>
+<td>GET</td>
+<td>Enable Z-Wave radio</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/enable/false</code></td>
+<td>GET</td>
+<td>Disable Z-Wave radio</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/startZwaveJoin</code></td>
+<td>GET</td>
+<td>Start Z-Wave inclusion mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/stopJoin</code></td>
+<td>GET</td>
+<td>Stop join mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveExclude</code></td>
+<td>GET</td>
+<td>Start Z-Wave exclusion mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/stopZWaveExclude</code></td>
+<td>GET</td>
+<td>Stop exclusion mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveRepair</code></td>
+<td>GET</td>
+<td>⚠️ Start Z-Wave network repair</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveRepair2?resetStats=false&amp;maxHealth=10</code></td>
+<td>GET</td>
+<td>Z-Wave repair v2</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveCancelRepair</code></td>
+<td>GET</td>
+<td>Cancel Z-Wave repair</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveNodeRepair2?{params}</code></td>
+<td>GET</td>
+<td>Repair specific Z-Wave node</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveDetails/update?{params}</code></td>
+<td>GET</td>
+<td>Update Z-Wave details</td>
+</tr>
+<tr>
+<td>🟡 <code>/hub/zwaveNodeDetailGet</code></td>
+<td>GET</td>
+<td>Trigger background node detail fetch</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwaveRefreshAllNodes</code></td>
+<td>GET</td>
+<td>Refresh all Z-Wave nodes</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/discoverDevice</code></td>
+<td>POST (form body)</td>
+<td>Discover Z-Wave device — body: <code>id={nodeId}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/nodeReinitialize</code></td>
+<td>POST (form body)</td>
+<td>Reinitialize Z-Wave node — body: <code>id={nodeId}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/nodeRemove</code></td>
+<td>POST (form body)</td>
+<td>Remove Z-Wave node — body: <code>id={nodeId}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/nodeCleanup</code></td>
+<td>GET</td>
+<td>Clean up Z-Wave node</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/refreshNodeStatus</code></td>
+<td>POST (form body)</td>
+<td>Refresh node status — body: <code>id={nodeId}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/pingNode</code></td>
+<td>GET</td>
+<td>Ping a Z-Wave node</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/nodeReplace/securityKeys</code></td>
+<td>POST</td>
+<td>Set replacement security keys</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/nodeReplace/stop</code></td>
+<td>POST</td>
+<td>Stop node replacement</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/startUpdateHubFirmware</code></td>
+<td>GET</td>
+<td>⚠️ Start Z-Wave firmware update</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Z-Wave POST node operations:</strong> The endpoints <code>/hub/zwave/discoverDevice</code>, <code>/hub/zwave/nodeReinitialize</code>, <code>/hub/zwave/nodeRemove</code>, <code>/hub/zwave/refreshNodeStatus</code>, and <code>/hub/zwave/pingNode</code> all accept POST with form body <code>id={nodeId}</code>. They return 404 on GET (POST only). All return 500 when targeting the hub controller node (id=1) — they require an actual paired device node.</p>
+<p><strong>C-4 Z-Wave limitations:</strong> <code>/hub/zwaveLogs</code> returns 404. <code>/hub/zwaveTopology</code> returns 500. <code>/hub/zwaveVersion</code> returns &quot;No Z-Wave controller instance is available&quot; after a radio disable/enable cycle. <code>/hub/zwaveRefreshAllNodes</code> shows the same controller error. The C-4 uses the legacy Z-Wave stack, not ZWaveJS.</p>
+</blockquote>
+<h3 id="z-wave-device-ota-firmware-update-250-beta">Z-Wave Device OTA Firmware Update (2.5.0 beta+)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/zwave/deviceFirmware/devices</code></td>
+<td>JSON</td>
+<td>List devices eligible for OTA firmware update</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/deviceFirmware/files</code></td>
+<td>JSON</td>
+<td>List available firmware files</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/deviceFirmware/details?{params}</code></td>
+<td>JSON</td>
+<td>Firmware update details for a device</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave/deviceFirmware/progress?{params}</code></td>
+<td>JSON</td>
+<td>Poll OTA update progress</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/deviceFirmware/start</code></td>
+<td>POST</td>
+<td>Start OTA firmware update on a device</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave/deviceFirmware/abort</code></td>
+<td>GET</td>
+<td>Abort in-progress firmware update</td>
+</tr>
+</tbody></table>
+<h3 id="z-wave-node-state-250-beta">Z-Wave Node State (2.5.0 beta+)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/zwaveNodeState?node={nodeId}</code></td>
+<td>JSON</td>
+<td>Get Z-Wave node state</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="16-z-wave-2-dual-radio-antenna">16. Z-Wave 2 (Dual Radio / Antenna)</h2>
+<p>For hubs with dual Z-Wave radios (C-8 Pro). On the C-4, <code>/hub/zwave2/antennaTestProgress</code> returns 404; <code>enable</code> returns <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;ZWaveJS installation is invalid&quot;}</code>; <code>disable</code> returns <code>{&quot;success&quot;:false,&quot;message&quot;:&quot;ZWaveJS is already disabled&quot;}</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/zwave2/antennaTestProgress</code></td>
+<td>JSON</td>
+<td>Antenna test progress (404 on C-4)</td>
+</tr>
+<tr>
+<td>🟡 <code>/hub/zwave2/antennaTestContinue</code></td>
+<td>GET</td>
+<td>Continue antenna test</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave2/enable</code></td>
+<td>GET</td>
+<td>Enable Z-Wave 2</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave2/disable</code></td>
+<td>GET</td>
+<td>Disable Z-Wave 2</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/zwave2/startAntennaTest?{params}</code></td>
+<td>GET</td>
+<td>Start antenna test</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/zwave2/getNodeState?node={nodeId}</code></td>
+<td>JSON</td>
+<td>Get Z-Wave 2 node state (2.5.0 beta+)</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="17-matter">17. Matter</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/matterDetails</code></td>
+<td>HTML</td>
+<td>Matter details page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/matterDetails/json</code></td>
+<td>JSON</td>
+<td>Matter status: enabled, installed, networkState</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/matterPairDeviceStatus?nodeId={id}</code></td>
+<td>JSON</td>
+<td>Matter pairing status</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/matter/enable/true</code></td>
+<td>GET</td>
+<td>Enable Matter</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/matter/enable/false</code></td>
+<td>GET</td>
+<td>Disable Matter</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/matter/pair?setupCode={code}</code></td>
+<td>GET</td>
+<td>Pair Matter device</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/matter/openPairingWindow?node={id}</code></td>
+<td>GET</td>
+<td>Open Matter pairing window</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/matter/reset</code></td>
+<td>GET</td>
+<td>⚠️ <strong>Reset Matter</strong></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/matterLogs</code></td>
+<td>HTML</td>
+<td>Matter logs page (2.5.0 beta+)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/matterLogs/json</code></td>
+<td>JSON</td>
+<td>Matter logs as JSON (2.5.0 beta+)</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/matterDetails/json</b></summary><pre><code class="language-json">{
+  &quot;enabled&quot;: false,
+  &quot;installed&quot;: true,
+  &quot;installFailed&quot;: false,
+  &quot;installInProgress&quot;: false,
+  &quot;rebootRequired&quot;: false,
+  &quot;networkState&quot;: &quot;Disabled&quot;
+}
+</code></pre>
+<p>On the <strong>C-4</strong>, <code>installed</code> is <code>false</code> and <code>networkState</code> is omitted. <code>/hub/matter/enable/true</code> returns <code>{&quot;success&quot;:true}</code> but has no practical effect — Matter remains not-installed. The enable/disable cycle is a no-op on unsupported hardware.</p>
+</details><hr>
+<h2 id="18-hub-advanced-admin">18. Hub Advanced / Admin</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/advanced/freeOSMemory</code></td>
+<td>Text</td>
+<td>Free OS memory (KB)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/freeOSMemoryHistory</code></td>
+<td>Text</td>
+<td>Historical memory/CPU CSV</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/freeOSMemoryLast</code></td>
+<td>Text</td>
+<td>Latest memory snapshot</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/internalTempCelsius</code></td>
+<td>Text</td>
+<td>Hub temperature (°C)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/databaseSize</code></td>
+<td>Text</td>
+<td>Database size (MB)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/event/limit</code></td>
+<td>Text</td>
+<td>Current event limit</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/zipgatewayVersion</code></td>
+<td>Text</td>
+<td>Z-Wave gateway version</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/latestBackupFileInProgress</code></td>
+<td>Text</td>
+<td>Backup in-progress status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/network/lanautonegconfigstatus</code></td>
+<td>Text</td>
+<td>LAN auto-neg status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/registeredUsersForLocalHubs</code></td>
+<td>JSON</td>
+<td>Registered users</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/getWiFiNetworkInfoAsyncStatus</code></td>
+<td>JSON</td>
+<td>WiFi config async status</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/certificate</code></td>
+<td>HTML</td>
+<td>SSL certificate management page</td>
+</tr>
+</tbody></table>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/advanced/event/limit/{1-2000}</code></td>
+<td>GET → Text</td>
+<td>Set event limit</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/enableHubMesh</code></td>
+<td>GET → Text</td>
+<td>Enable hub mesh — <strong>returns &quot;enabled, please reboot&quot;; deferred until reboot</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/disableHubMesh</code></td>
+<td>GET → Text</td>
+<td>Disable hub mesh — <strong>returns &quot;disabled, please reboot&quot;; deferred until reboot</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/enableCloudController</code></td>
+<td>GET</td>
+<td>Enable cloud controller</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/disableCloudController</code></td>
+<td>GET</td>
+<td>Disable cloud controller</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setConnectDevicesVisible/{bool}</code></td>
+<td>GET → Text</td>
+<td>Toggle connect devices visibility</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setGetStartedVisible/{bool}</code></td>
+<td>GET → Text</td>
+<td>Toggle get started visibility</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setRestartBonjour/{bool}</code></td>
+<td>GET</td>
+<td>Toggle Bonjour restart</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/installDriver/all</code></td>
+<td>GET</td>
+<td>Install all system drivers</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/deleteScheduledJob?{params}</code></td>
+<td>GET</td>
+<td>Delete scheduled job</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/disablessl</code></td>
+<td>GET</td>
+<td>Disable SSL</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/network/lanautonegconfigenable</code></td>
+<td>GET</td>
+<td>Enable LAN auto-negotiation — <strong>⚠️ see sticky state gotcha below</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/network/lanautonegconfigdisable</code></td>
+<td>GET</td>
+<td>Disable LAN auto-negotiation</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>LAN auto-negotiation sticky state:</strong> Toggling auto-negotiation off and back on leaves the status as <code>fixed_100</code> instead of <code>autoneg</code>. The state does not fully restore after a disable→enable cycle — it becomes &quot;sticky&quot; at the fixed setting. Exercise caution; you may need a reboot to fully restore auto-negotiation.
+| 🔴 <code>/hub/advanced/network/ethernetMode/{mode}</code> | GET | Set ethernet mode |
+| 🔴 <code>/hub/advanced/disconnectEthernet</code> | GET | Disconnect ethernet |
+| 🔴 <code>/hub/advanced/disconnectWiFi</code> | GET | Disconnect WiFi |
+| 🔴 <code>/hub/advanced/switchToDhcp?{params}</code> | GET | Switch to DHCP |
+| 🔴 <code>/hub/advanced/switchToStaticIp?{params}</code> | GET | Switch to static IP |
+| 🔴 <code>/hub/advanced/setWiFiNetworkInfo?{params}</code> | GET | Set WiFi config |
+| 🔴 <code>/hub/advanced/setWiFiNetworkInfoAsync?{params}</code> | GET | Set WiFi config (async) |</p>
+</blockquote>
+<h3 id="dangerous-hub-lifecycle">Dangerous — Hub Lifecycle</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/reboot</code></td>
+<td>POST</td>
+<td>⚠️ <strong>Reboot the hub</strong> — <strong>POST only</strong> (GET returns 404). Returns HTTP 200. Hub restarts in ~10 seconds.</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/shutdown</code></td>
+<td>POST</td>
+<td>⚠️ <strong>Shut down the hub</strong> — <strong>POST only</strong> (GET returns 404). Hub goes fully offline (port 80 and 8081). Requires physical power cycle to restart.</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/forceGC</code></td>
+<td>GET</td>
+<td>Force Java garbage collection</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/cleanupDatabase</code></td>
+<td>GET</td>
+<td>Clean up database</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/backupDB?fileName=latest</code></td>
+<td>GET → File</td>
+<td>Trigger database backup (streams file download)</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/restoreWithReboot</code></td>
+<td>GET</td>
+<td>Restore backup and reboot</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/restoreWithReboot?localOnly=yes&amp;onboarding=yes</code></td>
+<td>GET</td>
+<td>Restore during onboarding</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/rebooting?t={timestamp}</code></td>
+<td>HTML</td>
+<td>Rebooting status page (HTML with startup animation)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/shuttingDown</code></td>
+<td>HTML</td>
+<td>Shutting down status page (HTTP 200 even when hub is running)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hubStatus</code></td>
+<td>JSON</td>
+<td>Boot progress JSON: <code>{serverInitPercentage: &quot;Initializing Hub: 90%&quot;, serverInitDetails: &quot;identifying hub&quot;, status: &quot;starting&quot;}</code>. Status values: <code>starting</code>, <code>running</code>, <code>brokenDatabase</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="19-hub-cloud-amp-updates">19. Hub Cloud &amp; Updates</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/cloud/isPlatformLatest</code></td>
+<td>JSON</td>
+<td><code>{platformLatest: true/false}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/cloud/isPlatformUpdatedRecently</code></td>
+<td>Text</td>
+<td>Recent update check</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/cloud/checkUpdateStatus</code></td>
+<td>JSON</td>
+<td>Poll update progress — <code>{status, percent}</code>. Status values: <code>IDLE</code>, <code>DOWNLOAD_IN_PROGRESS</code>, <code>DOWNLOAD_STARTED</code>, <code>DOWNLOAD_FAILED</code>, <code>DOWNLOAD_FINISHED</code>, <code>DOWNLOAD_VERIFY</code>, <code>EXTRACT_*</code>, <code>UPDATE_STARTED</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/cloud/clearUpdateStatus</code></td>
+<td>GET</td>
+<td>Clear update status — returns <code>{&quot;success&quot;: &quot;true&quot;}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/cloud/checkForUpdate</code></td>
+<td>GET</td>
+<td>Check for firmware updates — returns <code>{version, upgrade, releaseNotesUrl, status}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/cloud/updatePlatform</code></td>
+<td>GET</td>
+<td>⚠️ <strong>Start firmware download and install</strong> — returns <code>{&quot;success&quot;: &quot;true&quot;}</code>. Hub auto-reboots after install.</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/cloud/triggerBackupWithStatus?migration={bool}</code></td>
+<td>GET</td>
+<td>Trigger cloud backup</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/platformUpdate</code></td>
+<td>HTML</td>
+<td>Firmware update page</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/dismissPlatformUpdate</code></td>
+<td>GET</td>
+<td>Dismiss the update notification banner</td>
+</tr>
+</tbody></table>
+<h3 id="firmware-update-flow-programmatic">Firmware Update Flow (Programmatic)</h3>
+<pre><code class="language-bash">HUB=http://192.168.1.100
+
+# 1. Check for updates
+curl &quot;$HUB/hub/cloud/checkForUpdate&quot;
+# → {&quot;version&quot;:&quot;2.5.0.116&quot;,&quot;upgrade&quot;:true,&quot;status&quot;:&quot;UPDATE_AVAILABLE&quot;}
+
+# 2. Start update (downloads + installs + reboots)
+curl &quot;$HUB/hub/cloud/updatePlatform&quot;
+# → {&quot;success&quot;:&quot;true&quot;}
+
+# 3. Poll progress
+curl &quot;$HUB/hub/cloud/checkUpdateStatus&quot;
+# → {&quot;status&quot;:&quot;DOWNLOAD_IN_PROGRESS&quot;,&quot;percent&quot;:0}
+# → {&quot;status&quot;:&quot;DOWNLOAD_FINISHED&quot;} → {&quot;status&quot;:&quot;UPDATE_STARTED&quot;}
+# → Hub reboots automatically, shows &quot;Starting Up&quot; page
+
+# 4. Wait for hub to come back
+# Poll /hubStatus until {&quot;status&quot;:&quot;running&quot;}, then /hub2/hubData for new version
+</code></pre>
+<p><strong>Update status progression:</strong> <code>DOWNLOAD_IN_PROGRESS</code> (with <code>percent</code>) → <code>DOWNLOAD_FINISHED</code> → <code>DOWNLOAD_VERIFY</code> → <code>EXTRACT_*</code> → <code>UPDATE_STARTED</code> → hub reboots → &quot;Hubitat Starting Up&quot; page (with empty <code>buildVersion=</code>) → hub comes back on new firmware.</p>
+<p><strong>No update available:</strong> <code>{&quot;status&quot;:&quot;NO_UPDATE_AVAILABLE&quot;}</code> — returned when hub is unregistered, has no cloud connection, or is already on the latest firmware.</p>
+<hr>
+<h2 id="20-hub-settings-amp-ui">20. Hub Settings &amp; UI</h2>
+<h3 id="read-only">Read-Only</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/edit</code></td>
+<td>HTML</td>
+<td>Hub settings page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/register</code></td>
+<td>HTML</td>
+<td>Hub registration page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/migrate</code></td>
+<td>HTML</td>
+<td>Hub migration page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/compatibleDevices</code></td>
+<td>HTML</td>
+<td>Compatible devices list</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/getAllTimeZones</code></td>
+<td>JSON</td>
+<td>All timezones JSON</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/getTop100TimeZones</code></td>
+<td>JSON</td>
+<td>Top 100 timezones JSON</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/getLatLongBasedOnGeolocator?t={timestamp}</code></td>
+<td>JSON</td>
+<td>Geolocation lookup</td>
+</tr>
+<tr>
+<td>🟢 <code>/alerts</code></td>
+<td>HTML</td>
+<td>Alerts page</td>
+</tr>
+<tr>
+<td>🟢 <code>/tos</code></td>
+<td>HTML</td>
+<td>Terms of Service</td>
+</tr>
+</tbody></table>
+<h3 id="action-endpoints">Action Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/applyDarkMode/true</code></td>
+<td>GET</td>
+<td>Enable dark mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/applyDarkMode/false</code></td>
+<td>GET</td>
+<td>Disable dark mode</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/dismissPlatformUpdate?version={ver}</code></td>
+<td>GET</td>
+<td>Dismiss update notification</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/dismissBuiltInApps</code></td>
+<td>GET</td>
+<td>Dismiss built-in apps notice</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/dismissWeakZigbee</code></td>
+<td>GET</td>
+<td>Dismiss weak Zigbee notice</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/toggleUISecurityEnabled</code></td>
+<td>GET</td>
+<td>Toggle UI security on/off</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/acceptTOS</code></td>
+<td>GET</td>
+<td>Accept Terms of Service</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/temporarilyAcceptTOS?noRedirect=true</code></td>
+<td>GET</td>
+<td>Temporarily accept TOS</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/updateName?{params}</code></td>
+<td>POST</td>
+<td>Update hub name</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/updatePostalCode?{params}</code></td>
+<td>POST</td>
+<td>Update postal code</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/updateLatLongTimezone?{params}</code></td>
+<td>POST</td>
+<td>Update location/timezone</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/commandRetryController/setDevices?{params}</code></td>
+<td>GET</td>
+<td>Set command retry devices</td>
+</tr>
+<tr>
+<td>🔴 <code>/menuExpanded?prefix={prefix}&amp;value={bool}</code></td>
+<td>GET</td>
+<td>Toggle menu expansion state</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="21-network-configuration">21. Network Configuration</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/networkTest</code></td>
+<td>HTML</td>
+<td>Network test page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/networkSetup</code></td>
+<td>HTML</td>
+<td>Network setup page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/networkTest/ping/gateway</code></td>
+<td>Text</td>
+<td>Ping the gateway (live output)</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/networkTest/ping/{ip}</code></td>
+<td>Text</td>
+<td>Ping a specific IP</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/networkTest/speedtest</code></td>
+<td>Text</td>
+<td>Run a speed test</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/networkTest/traceroute/{ip}</code></td>
+<td>Text</td>
+<td>Traceroute to an IP</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/scanForNtpServers</code></td>
+<td>HTML</td>
+<td>Scan for NTP servers — returns HTML table with IP, reported time, and &quot;Set&quot; links</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/advanced/ntpServer</code></td>
+<td>Text</td>
+<td>Current NTP server (returns &quot;No value set&quot; if not configured)</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/ntpServer/{ip}</code></td>
+<td>GET</td>
+<td>Set NTP server to a specific IP</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="22-file-manager">22. File Manager</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/fileManager</code></td>
+<td>HTML</td>
+<td>File manager page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/fileManager/json</code></td>
+<td>JSON</td>
+<td>File list: <code>{files: [{date, size, name, id, type}], path, freeSpace}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/local/{path}/{filename}</code></td>
+<td>File</td>
+<td>Access uploaded local files</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/fileManager/upload</code></td>
+<td>POST (multipart)</td>
+<td>Upload file — <strong>requires real multipart/form-data; piped stdin fails</strong></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/fileManager/delete</code></td>
+<td>POST (form body)</td>
+<td>Delete file</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /hub/fileManager/json</b></summary><pre><code class="language-json">{
+  &quot;files&quot;: [
+    {&quot;date&quot;: &quot;1766509518900&quot;, &quot;size&quot;: &quot;109838&quot;, &quot;name&quot;: &quot;deviceProfiles.json&quot;, &quot;id&quot;: &quot;-4260954271872655204&quot;, &quot;type&quot;: &quot;file&quot;},
+    {&quot;size&quot;: &quot;0&quot;, &quot;name&quot;: &quot;firmware&quot;, &quot;id&quot;: &quot;...&quot;, &quot;type&quot;: &quot;dir&quot;}
+  ],
+  &quot;path&quot;: null,
+  &quot;freeSpace&quot;: 999090294
+}
+</code></pre>
+</details><hr>
+<h2 id="23-tts-text-to-speech">23. TTS (Text-to-Speech)</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/tts/edit</code></td>
+<td>JSON</td>
+<td>Current voice and all available voices: <code>{current, voices: [{name, gender, language}]}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/tts/updateUIFriendly</code></td>
+<td>POST</td>
+<td>Update TTS UI name</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/tts/updateDefaultVoice</code></td>
+<td>GET</td>
+<td>Update default TTS voice</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="24-user-management">24. User Management</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/users</code></td>
+<td>HTML</td>
+<td>User list</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/userAdmin</code></td>
+<td>HTML</td>
+<td>User admin page</td>
+</tr>
+<tr>
+<td>🟢 <code>/hub/editUser/{id}</code></td>
+<td>HTML</td>
+<td>Edit user page</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/addUser</code></td>
+<td>POST</td>
+<td>Add new user</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/deleteUser/{id}</code></td>
+<td>GET</td>
+<td>Delete user</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="25-code-publishing">25. Code Publishing</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hub/publishCode/status</code></td>
+<td>JSON</td>
+<td><code>{success: true, completed: true, hubs: []}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/publishCode/app/{id}</code></td>
+<td>GET</td>
+<td>Publish app code</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/publishCode/driver/{id}</code></td>
+<td>GET</td>
+<td>Publish driver code</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/publishCode/file/{id}</code></td>
+<td>GET</td>
+<td>Publish file</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="26-mobile-api-amp-smartstart">26. Mobile API &amp; SmartStart</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/mobileapi/zwave/smartstart/list?t={timestamp}</code></td>
+<td>JSON</td>
+<td>List SmartStart entries</td>
+</tr>
+<tr>
+<td>🔴 <code>/mobileapi/zwave/smartstart/delete</code></td>
+<td>POST</td>
+<td>Delete SmartStart entry</td>
+</tr>
+</tbody></table>
+<hr>
+<h2 id="27-maker-api-token-required">27. Maker API (Token Required)</h2>
+<p>The <strong>Maker API</strong> is Hubitat&#39;s official integration endpoint — it&#39;s the recommended way for external apps, dashboards, and home automation platforms to communicate with your hub. Unlike the internal endpoints above (which have no authentication), Maker API requires an <strong>access token</strong> (a long random string that acts as a password) appended to every request.</p>
+<p>Requires the Maker API app to be installed (Settings → Apps in the hub UI). All endpoints use:</p>
+<pre><code>http://&lt;HUB_IP&gt;/apps/api/{appId}/{endpoint}?access_token={token}
+</code></pre>
+<p><strong>Installation via API:</strong> Maker API is system app type 15. Install with <code>GET /installedapp/create/15</code>. Device selection requires the web UI configure flow — it cannot be done via API alone.</p>
+<p><strong>Discovering the access token:</strong> After installation, the token is in the app state:</p>
+<pre><code>GET /installedapp/statusJson/{installedAppId}
+→ appState: [{&quot;name&quot;: &quot;accessToken&quot;, &quot;value&quot;: &quot;&lt;token&gt;&quot;, &quot;type&quot;: &quot;String&quot;}]
+</code></pre>
+<p><strong>Authentication errors:</strong> Invalid or missing token returns XML: <code>&lt;oauth&gt;&lt;error&gt;invalid_token&lt;/error&gt;&lt;/oauth&gt;</code></p>
+<p><strong>Settings (from <code>/installedapp/statusJson</code>):</strong> <code>pickedDevices</code> (device list), <code>localAccess</code> (bool), <code>cloudAccess</code> (bool), <code>allowModes</code> (bool), <code>allowHSM</code> (bool), <code>postURL</code> (text), <code>corsHosts</code> (text), <code>logging</code> (bool)</p>
+<h3 id="device-endpoints">Device Endpoints</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/devices</code></td>
+<td>JSON</td>
+<td>All devices: <code>[{id, name, label, type, room, roomId}]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/all</code></td>
+<td>JSON</td>
+<td>All devices with full attributes, capabilities, commands</td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/{deviceId}</code></td>
+<td>JSON</td>
+<td>Single device with typed attributes</td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/deviceData/{deviceId}</code></td>
+<td>JSON</td>
+<td>Device data section</td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/{deviceId}/events?num={n}</code></td>
+<td>JSON</td>
+<td>Device event history (optional <code>num</code> param limits results)</td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/{deviceId}/commands</code></td>
+<td>JSON</td>
+<td>Available commands: <code>[{command, type}]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/{deviceId}/capabilities</code></td>
+<td>JSON</td>
+<td>Device capabilities with current values</td>
+</tr>
+<tr>
+<td>🟢 <code>/devices/{deviceId}/attribute/{attribute}</code></td>
+<td>JSON</td>
+<td>Single attribute value</td>
+</tr>
+<tr>
+<td>🔴 <code>/devices/{deviceId}/{command}</code></td>
+<td>GET → JSON</td>
+<td>Send command to device</td>
+</tr>
+<tr>
+<td>🔴 <code>/devices/{deviceId}/{command}/{secondaryValue}</code></td>
+<td>GET → JSON</td>
+<td>Send command with value</td>
+</tr>
+<tr>
+<td>🔴 <code>/devices/{deviceId}/setLabel?label={label}</code></td>
+<td>GET → JSON</td>
+<td>Set device label</td>
+</tr>
+<tr>
+<td>🔴 <code>/devices/{deviceId}/setDriver?namespace={ns}&amp;name={name}</code></td>
+<td>GET → JSON</td>
+<td>Set device driver</td>
+</tr>
+</tbody></table>
+<h3 id="hub-variables">Hub Variables</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hubvariables</code></td>
+<td>JSON</td>
+<td>Hub variables list</td>
+</tr>
+<tr>
+<td>🟢 <code>/hubvariables/{name}</code></td>
+<td>JSON</td>
+<td>Get hub variable value</td>
+</tr>
+<tr>
+<td>🔴 <code>/hubvariables/{name}/{value}</code></td>
+<td>GET → JSON</td>
+<td>Set hub variable value</td>
+</tr>
+</tbody></table>
+<h3 id="modes-amp-hsm">Modes &amp; HSM</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/modes</code></td>
+<td>JSON</td>
+<td>All modes: <code>[{active, id, name}]</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/modes/{modeId}</code></td>
+<td>GET → JSON</td>
+<td>Set active mode</td>
+</tr>
+<tr>
+<td>🟢 <code>/hsm</code></td>
+<td>JSON</td>
+<td>HSM status</td>
+</tr>
+<tr>
+<td>🔴 <code>/hsm/{status}</code></td>
+<td>GET → JSON</td>
+<td>Set HSM status</td>
+</tr>
+</tbody></table>
+<h3 id="rooms">Rooms</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/rooms</code></td>
+<td>JSON</td>
+<td>All rooms: <code>[{id, name, deviceIds}]</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/room/select/{roomId}</code></td>
+<td>JSON</td>
+<td>Room details</td>
+</tr>
+<tr>
+<td>🔴 <code>/room/insert?name={name}&amp;deviceIds={ids}</code></td>
+<td>GET → JSON</td>
+<td>Create room</td>
+</tr>
+<tr>
+<td>🔴 <code>/room/update/{roomId}?name={name}&amp;deviceIds={ids}</code></td>
+<td>GET → JSON</td>
+<td>Update room</td>
+</tr>
+<tr>
+<td>🔴 <code>/room/delete/{roomId}</code></td>
+<td>GET → JSON</td>
+<td>Delete room</td>
+</tr>
+</tbody></table>
+<h3 id="other">Other</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/postURL/{url}</code></td>
+<td>GET → JSON</td>
+<td>Set webhook URL — returns <code>{&quot;url&quot;: &quot;&lt;url&gt;&quot;}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>/notification/{text}</code></td>
+<td>JSON</td>
+<td>Send notification (404 on firmware 2.4.3/2.4.4 — may require newer firmware)</td>
+</tr>
+<tr>
+<td>🟢 <code>/location</code></td>
+<td>JSON</td>
+<td>Location info (404 on firmware 2.4.3/2.4.4 — may require newer firmware)</td>
+</tr>
+<tr>
+<td>🟢 <code>/info</code></td>
+<td>JSON</td>
+<td>Hub info via Maker API (404 on firmware 2.4.3/2.4.4 — may require newer firmware)</td>
+</tr>
+</tbody></table>
+<h3 id="dashboard-via-maker-api">Dashboard (via Maker API)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/apps/api/{appId}/dashboard/{dashId}?access_token={token}</code></td>
+<td>JSON</td>
+<td>Dashboard data</td>
+</tr>
+<tr>
+<td>🟢 <code>/apps/api/{appId}/menu?access_token={token}&amp;local=true</code></td>
+<td>JSON</td>
+<td>Dashboard menu</td>
+</tr>
+</tbody></table>
+<details>
+<summary><b>Sample — /devices/{id}/commands</b></summary><pre><code class="language-json">[
+  {&quot;command&quot;: &quot;configure&quot;, &quot;type&quot;: [&quot;n/a&quot;]},
+  {&quot;command&quot;: &quot;off&quot;, &quot;type&quot;: [&quot;n/a&quot;]},
+  {&quot;command&quot;: &quot;on&quot;, &quot;type&quot;: [&quot;n/a&quot;]},
+  {&quot;command&quot;: &quot;setColor&quot;, &quot;type&quot;: [&quot;COLOR_MAP&quot;]},
+  {&quot;command&quot;: &quot;setColorTemperature&quot;, &quot;type&quot;: [&quot;NUMBER&quot;, &quot;NUMBER&quot;, &quot;NUMBER&quot;]},
+  {&quot;command&quot;: &quot;setLevel&quot;, &quot;type&quot;: [&quot;NUMBER&quot;, &quot;NUMBER&quot;]}
+]
+</code></pre>
+</details><hr>
+<h2 id="28-port-8081-diagnostic-recovery-tool">28. Port 8081 (Diagnostic / Recovery Tool)</h2>
+<p>Your hub runs a second, separate web server on <strong>port 8081</strong> (e.g., <code>http://192.168.1.100:8081</code>). This is the <strong>Diagnostic Tool</strong> — a lightweight recovery interface that stays running even when the main hub application (on port 80) is down or stuck. It&#39;s your lifeline when the hub won&#39;t boot properly.</p>
+<p>Think of it like a BIOS recovery menu for your hub — you can reboot, restore backups, switch firmware versions, or factory reset from here even when the main UI is completely broken.</p>
+<h3 id="authentication">Authentication</h3>
+<p>Auth uses the hub&#39;s MAC address (uppercase, no colons):</p>
+<ol>
+<li><strong>Login:</strong> <code>POST :8081/newLogin</code> with body = MAC address (e.g., <code>C44EAC23B218</code>), <code>Content-Type: application/x-www-form-urlencoded</code><ul>
+<li>Returns <code>{&quot;inProgress&quot;: false, &quot;success&quot;: true, &quot;message&quot;: &quot;&lt;token&gt;&quot;}</code></li>
+</ul>
+</li>
+<li><strong>Subsequent requests:</strong> Add <code>Authorization: Basic &lt;token&gt;</code> header</li>
+<li><strong>Check login:</strong> <code>GET :8081/checkLogin</code> with same header — returns 200 if valid</li>
+<li><strong>Token is invalidated on reboot</strong> — must re-login after each restart</li>
+</ol>
+<h3 id="no-authentication-required">No Authentication Required</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>:8081/</code></td>
+<td>HTML</td>
+<td>Diagnostic landing page (Vue SPA)</td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/latestBackupFileInProgress</code></td>
+<td>Text</td>
+<td>Returns <code>true</code>/<code>false</code> — whether a backup is currently being created</td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/downloadLatestBackup</code></td>
+<td>File</td>
+<td><strong>Downloads the latest hub backup</strong> (LZF format, ~400KB). No authentication!</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/deleteDatabaseTraceFiles</code></td>
+<td>GET → Text</td>
+<td>Delete database trace files — returns <code>deleted files: [...], could not delete: [...]</code></td>
+</tr>
+</tbody></table>
+<h3 id="requires-authentication-401-unauthorized-without-credentials">Requires Authentication (401 Unauthorized without credentials)</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>:8081/api/hubInfo</code></td>
+<td>POST → JSON</td>
+<td>Hub info: <code>{hubId, uv (update tool version), hubAvailable, pv (platform version), ip, hubTime, hv (hardware version), stableVersion}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/currentTime</code></td>
+<td>POST → JSON</td>
+<td><code>{success: true, currentDateTime: &quot;Thu, 16 Apr 2026 01:31:55 CDT&quot;}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/backups</code></td>
+<td>JSON</td>
+<td>List backups: <code>{success, backups: [{name, createTime, fileSize}]}</code> — includes auto-backup from shutdown</td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/versions</code></td>
+<td>POST → JSON</td>
+<td>Available firmware: <code>{success, hubList: [&quot;hub-2.4.4.156&quot;, ...], currentVersionExecuting}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/getLatest</code></td>
+<td>POST → JSON</td>
+<td><code>{&quot;getLatest&quot;: &quot;success&quot;}</code></td>
+</tr>
+<tr>
+<td>🟢 <code>:8081/api/downloadBackup/{filename}</code></td>
+<td>File</td>
+<td>Download specific backup file by name</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/rebootHub</code></td>
+<td>POST → JSON</td>
+<td>Reboot — <code>{&quot;success&quot;: true}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/shutdownHub</code></td>
+<td>POST → JSON</td>
+<td>Shutdown — <code>{&quot;success&quot;: true}</code></td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/safeMode</code></td>
+<td>POST → JSON</td>
+<td>Boot into safe mode — <code>{&quot;success&quot;: true}</code>. Hub restarts with <code>safeMode: true</code> in hubData. Normal reboot exits safe mode.</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/softResetHub?clearPastLogs={bool}</code></td>
+<td>POST → JSON</td>
+<td><strong>Soft reset</strong> — wipes database (devices, apps, name, settings) but preserves radio configurations (Zigbee channel/PanId, Z-Wave nodes). Hub comes back with <code>freshDatabase: true</code> and name &quot;My New Hub&quot;.</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/factoryResetHub</code></td>
+<td>POST → JSON</td>
+<td><strong>Factory reset</strong> — erases all data including radio config. <strong>Fails on C-4</strong> with <code>UnsatisfiedLinkError: gnu.io.RXTXPort.controlRs485</code> (RS-485 native library not available on C-4 hardware). ⚠️ The crash can corrupt the database — the main app (port 80) may fail to start afterward, requiring a soft reset via <code>:8081/api/softResetHub</code> to recover.</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/switchToStable</code></td>
+<td>POST → JSON</td>
+<td>Switch to stable firmware channel</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/switchVersion/hub-{version}</code></td>
+<td>POST → JSON</td>
+<td>Switch to specific firmware version (versions from <code>/api/versions</code>)</td>
+</tr>
+<tr>
+<td>🔴 <code>:8081/api/updateTime</code></td>
+<td>POST</td>
+<td>Update hub time</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p><strong>Security note:</strong> <code>/api/downloadLatestBackup</code> requires no authentication on the LAN. Anyone on the local network can download a full hub backup containing device configurations, app settings, and potentially sensitive data. The auth mechanism itself uses only the hub&#39;s MAC address, which is discoverable via ARP.</p>
+</blockquote>
+<hr>
+<h2 id="29-onboarding-amp-setup-wizard">29. Onboarding &amp; Setup Wizard</h2>
+<p>The hub presents a setup wizard on first boot or after a soft/factory reset (<code>freshDatabase: true</code>). The entire wizard can be driven programmatically — no browser interaction required.</p>
+<h3 id="setup-flow-in-order">Setup Flow (in order)</h3>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 Accept TOS</td>
+<td><code>/hub/acceptTOS</code></td>
+<td>GET</td>
+<td>Accept terms of service — required before any other setup</td>
+</tr>
+<tr>
+<td>🔴 Set hub name</td>
+<td><code>/hub/updateName?name={name}</code></td>
+<td>GET</td>
+<td>Set the hub&#39;s display name</td>
+</tr>
+<tr>
+<td>🔴 Set location (zip)</td>
+<td><code>/hub/updatePostalCode?code={zip}</code></td>
+<td>GET → Text</td>
+<td>Set location by postal/ZIP code — returns <code>true</code></td>
+</tr>
+<tr>
+<td>🔴 Set location (coords)</td>
+<td><code>/hub/updateLatLogTimezone?latitude={lat}&amp;longitude={lng}&amp;timeZone={tz}&amp;temperatureScale={C or F}</code></td>
+<td>GET → Text</td>
+<td>Set location by coordinates with timezone — returns <code>true</code></td>
+</tr>
+<tr>
+<td>🔴 Set location (POST)</td>
+<td><code>/location/update</code></td>
+<td>POST</td>
+<td>Update location — accepts form-urlencoded body</td>
+</tr>
+<tr>
+<td>🔴 Register hub</td>
+<td><code>/onboardingRegisterHub?id_token={token}</code></td>
+<td>GET</td>
+<td>Register with Hubitat cloud — requires a Cognito <code>IdToken</code> from prior login to <code>https://service.cloud.hubitat.com/au/auth</code></td>
+</tr>
+<tr>
+<td>🟢 Check status</td>
+<td><code>/onboarding?step=10&amp;checkHubStatus=true</code></td>
+<td>GET</td>
+<td>Check if hub setup is complete</td>
+</tr>
+</tbody></table>
+<h3 id="dismissing-the-wizard">Dismissing the Wizard</h3>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🔴 <code>/hub/advanced/setGetStartedVisible/false</code></td>
+<td>GET → Text</td>
+<td>Hide the &quot;Get Started&quot; wizard page — returns <code>done</code></td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setGetStartedVisible/true</code></td>
+<td>GET → Text</td>
+<td>Show the &quot;Get Started&quot; page again</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setConnectDevicesVisible/false</code></td>
+<td>GET → Text</td>
+<td>Hide the &quot;Connect Devices to Your Hub&quot; discovery banner</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/advanced/setConnectDevicesVisible/true</code></td>
+<td>GET → Text</td>
+<td>Show the device discovery banner</td>
+</tr>
+<tr>
+<td>🔴 <code>/getstarted?start=over</code></td>
+<td>GET</td>
+<td>Reset and restart the entire setup wizard</td>
+</tr>
+</tbody></table>
+<h3 id="example-programmatic-hub-setup">Example: Programmatic Hub Setup</h3>
+<pre><code class="language-bash">HUB=http://192.168.1.100
+
+# 1. Accept TOS
+curl &quot;$HUB/hub/acceptTOS&quot;
+
+# 2. Set hub name
+curl &quot;$HUB/hub/updateName?name=MyHub&quot;
+
+# 3. Set location by coordinates
+curl &quot;$HUB/hub/updateLatLogTimezone?latitude=32.7767&amp;longitude=-96.7970&amp;timeZone=America/Chicago&amp;temperatureScale=F&quot;
+
+# 4. Or set location by ZIP code
+curl &quot;$HUB/hub/updatePostalCode?code=75201&quot;
+
+# 5. Set location details via POST (city, state, country, timezone)
+curl -X POST -d &quot;city=Dallas&amp;state=TX&amp;country=US&amp;timeZone=America/Chicago&amp;temperatureScale=F&amp;zipCode=75201&quot; \
+  &quot;$HUB/location/update&quot;
+
+# 6. Dismiss the setup wizard
+curl &quot;$HUB/hub/advanced/setGetStartedVisible/false&quot;
+curl &quot;$HUB/hub/advanced/setConnectDevicesVisible/false&quot;
+</code></pre>
+<p><strong><code>/hub/updateName</code> parameters:</strong></p>
+<ul>
+<li><code>name</code> — Hub display name (string)</li>
+</ul>
+<p><strong><code>/hub/updateLatLogTimezone</code> parameters:</strong></p>
+<ul>
+<li><code>latitude</code> — Decimal latitude (e.g., <code>32.7767</code>)</li>
+<li><code>longitude</code> — Decimal longitude (e.g., <code>-96.7970</code>)</li>
+<li><code>timeZone</code> — IANA timezone (e.g., <code>America/Chicago</code>, <code>America/New_York</code>, <code>Europe/London</code>)</li>
+<li><code>temperatureScale</code> — <code>F</code> (Fahrenheit) or <code>C</code> (Celsius)</li>
+</ul>
+<p><strong><code>/location/update</code> POST body (form-urlencoded):</strong></p>
+<ul>
+<li><code>city</code> — City name</li>
+<li><code>state</code> — State/province</li>
+<li><code>country</code> — Country code</li>
+<li><code>timeZone</code> — IANA timezone</li>
+<li><code>temperatureScale</code> — <code>F</code> or <code>C</code></li>
+<li><code>zipCode</code> — Postal/ZIP code</li>
+<li><code>latitude</code> — Decimal latitude (optional)</li>
+<li><code>longitude</code> — Decimal longitude (optional)</li>
+</ul>
+<blockquote>
+<p><strong>Note:</strong> After a soft reset, the hub boots into the setup wizard at <code>/getstarted</code>. The main UI (sidebar, dashboard) is functional underneath — the wizard is just an overlay. Calling <code>/hub/advanced/setGetStartedVisible/false</code> dismisses it without completing setup. The cloud controller may need to be enabled separately via <code>/hub/advanced/enableCloudController</code> + reboot.</p>
+</blockquote>
+<hr>
+<h2 id="30-miscellaneous">30. Miscellaneous</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>🟢 <code>/hubStatus</code></td>
+<td>JSON</td>
+<td>Boot progress: <code>{serverInitPercentage, serverInitDetails, status}</code> — status is <code>starting</code> during boot, <code>running</code> when ready, <code>brokenDatabase</code> if corrupt. Returns 404 when hub is fully booted.</td>
+</tr>
+<tr>
+<td>🟢 <code>/runtimeStats/displayStat/check{statName}/{value}</code></td>
+<td>JSON</td>
+<td>Check/toggle runtime stat display</td>
+</tr>
+<tr>
+<td>🔴 <code>/logout</code></td>
+<td>Redirect</td>
+<td>Log out</td>
+</tr>
+<tr>
+<td>🔴 <code>/getstarted?start=over</code></td>
+<td>Redirect</td>
+<td>Restart onboarding</td>
+</tr>
+<tr>
+<td>🔴 <code>/setupWiFi</code></td>
+<td>Redirect</td>
+<td>WiFi setup</td>
+</tr>
+<tr>
+<td>🔴 <code>/onboardingRegisterHub?id_token={token}</code></td>
+<td>GET</td>
+<td>Register hub during onboarding</td>
+</tr>
+<tr>
+<td>🔴 <code>/hub/dismissAppsSplitMessage</code></td>
+<td>GET</td>
+<td>Dismiss the apps section split notification (2.5.0 beta+)</td>
+</tr>
+<tr>
+<td>🟢 <code>/app/roomOccupancyLighting/{roomId}/config</code></td>
+<td>JSON</td>
+<td>Room occupancy lighting configuration (2.5.0 beta+)</td>
+</tr>
+</tbody></table>
+<p><strong>External cloud endpoint:</strong></p>
+<ul>
+<li><code>https://service.cloud.hubitat.com/au/auth</code> — POST: Cloud authentication</li>
+</ul>
+<hr>
+<h2 id="31-confirmed-non-existent-endpoints-404">31. Confirmed Non-Existent Endpoints (404)</h2>
+<p>The following commonly guessed paths do <strong>not</strong> exist on firmware 2.4.4.156 (C-8 Pro):</p>
+<p><code>/hub/memoryUsage</code>, <code>/hub/threadInfo</code>, <code>/hub/stats</code>, <code>/hub/info</code>, <code>/hub/hubInfo</code>, <code>/hub/variable/list</code>, <code>/hub/variables</code>, <code>/hub/mode</code>, <code>/hub/modes</code>, <code>/hub/hsm</code>, <code>/hub/rooms</code>, <code>/hub/room/list</code>, <code>/hub/schedule</code>, <code>/hub/schedules</code>, <code>/hub/subscription</code>, <code>/hub/subscriptions</code>, <code>/hub/state</code>, <code>/hub/firmware</code>, <code>/hub/firmwareVersion</code>, <code>/hub/platform</code>, <code>/hub/advanced/platformData</code>, <code>/hub/advanced/hubModel</code>, <code>/hub/advanced/hubUID</code>, <code>/hub/hubMesh</code>, <code>/hub/hubMeshInfo</code>, <code>/hub/notifications</code>, <code>/hub/dashboard</code>, <code>/hub/dashboards</code>, <code>/hub/advanced/settings</code>, <code>/hub/advanced/config</code>, <code>/hub/advanced/network</code> (base path), <code>/hub/advanced/zipGateway</code>, <code>/hub/enableStats</code>, <code>/hub/disableStats</code>, <code>/room/list/data</code>, <code>/subscription/list/data</code>, <code>/hub/cloud/token</code>, <code>/hub/cloud/info</code>, <code>/device/fullListJson</code>, <code>/device/data/{id}</code>, <code>/device/ajax/data</code>, <code>/hub/advanced/databaseSizeHistory</code>, <code>/hub/zigbeeVersion</code>, <code>/hub/advanced/uptime</code>, <code>/hubsocket</code></p>
+<p><strong>Additional 404s on C-4 (firmware 2.4.3.103):</strong>
+<code>/hub/cpuInfo</code>, <code>/hub/publishCode/status</code>, <code>/hub/zwaveLogs</code>, <code>/hub/zwave/securityKeys</code>, <code>/hub/zwave/securityCode</code>, <code>/hub/zwaveRepair2Status</code>, <code>/hub/zwave2/antennaTestProgress</code>, <code>/location/updateTimeJson</code></p>
+<hr>
+<h2 id="response-header-notes">Response Header Notes</h2>
+<p>Every HTTP response includes <strong>headers</strong> — metadata about the response that comes before the actual data. Here&#39;s what Hubitat&#39;s headers look like:</p>
+<pre><code>HTTP/1.1 200 OK
+Set-Cookie: HUBSESSION=node0...; Path=/
+Expires: Thu, 01 Jan 1970 00:00:00 GMT
+Content-Type: text/html;charset=utf-8
+Transfer-Encoding: chunked
+</code></pre>
+<ul>
+<li><strong>No <code>Server</code> header</strong> — the hub doesn&#39;t reveal what web server software it runs</li>
+<li><strong><code>Content-Type</code> is often wrong</strong> — many JSON responses claim to be <code>text/html</code>. Don&#39;t trust this header; check the response body instead</li>
+<li><strong>Session cookies</strong> — the hub issues a <code>HUBSESSION</code> cookie with every response (used by the web UI to track your browsing session)</li>
+<li><strong>No caching</strong> — the <code>Expires</code> date is set to 1970 (the past), telling browsers to never cache responses</li>
+<li><strong>Chunked encoding</strong> — responses are sent in chunks rather than all at once (a standard HTTP technique for dynamically generated content)</li>
+</ul>
+<hr>
+<h2 id="important-things-to-know">Important Things to Know</h2>
+<h3 id="security">Security</h3>
+<ol>
+<li><p><strong>No login required for internal endpoints.</strong> Anyone on your local network can access every endpoint listed here (except Maker API, which needs a token). There is no username/password protection. This is by design — Hubitat assumes your home network is trusted.</p>
+</li>
+<li><p><strong>Visiting a URL can trigger actions.</strong> Most web apps require you to click a button to do something dangerous. Hubitat doesn&#39;t — simply visiting a URL like <code>/hub/reboot</code> will reboot your hub. Be careful with bookmarks, link-checking tools, and browser extensions that pre-load URLs.</p>
+</li>
+<li><p><strong>The diagnostic tool (port 8081) uses your hub&#39;s MAC address as a password.</strong> A <strong>MAC address</strong> is a hardware identifier printed on your hub and discoverable by any device on your network (via a protocol called <strong>ARP</strong>). This means the &quot;authentication&quot; on port 8081 is effectively security by obscurity. Anyone on your LAN who knows your hub&#39;s MAC can log in. Tokens expire on reboot.</p>
+</li>
+<li><p><strong>Hub backups can be downloaded without any authentication</strong> via the port 8081 diagnostic tool (<code>/api/downloadLatestBackup</code>). Backups contain your device configurations, app settings, and potentially sensitive data.</p>
+</li>
+<li><p><strong><code>/installedapp/statusJson/{id}</code> exposes internal app data</strong> including OAuth access tokens, device lists, and app state — all without authentication. This is the most information-rich endpoint for any installed app.</p>
+</li>
+</ol>
+<h3 id="common-gotchas">Common Gotchas</h3>
+<ol start="6">
+<li><p><strong>Some endpoints need JSON, others need form data — there&#39;s no consistency.</strong> When sending data to the hub via POST, some endpoints require the data as <strong>JSON</strong> (structured data with <code>Content-Type: application/json</code> header), while others need <strong>form-urlencoded</strong> data (like an HTML form submission). Using the wrong format causes silent failures or &quot;Unknown error&quot; messages. Each endpoint section notes the correct format.</p>
+</li>
+<li><p><strong>The hub&#39;s <code>Content-Type</code> response headers are unreliable.</strong> Many endpoints that return JSON data incorrectly label it as <code>text/html</code>. Don&#39;t rely on the header to determine the response format — check the actual response body instead.</p>
+</li>
+<li><p><strong>System (built-in) code is hidden.</strong> When you request the source code for built-in apps or drivers via <code>/app/ajax/code</code> or <code>/driver/ajax/code</code>, the <code>source</code> field comes back empty. Only user-installed code is readable.</p>
+</li>
+<li><p><strong><code>/device/createVirtual</code> needs a numeric driver ID, not a name.</strong> Use the <code>deviceTypeId</code> parameter with the number from <code>/device/drivers</code> (e.g., <code>?deviceTypeId=221</code> for Virtual Switch). Using a driver name string returns <code>deviceId: 0</code>.</p>
+</li>
+<li><p><strong>Some endpoints that work in the browser UI fail via direct API calls.</strong> <code>/location/mode/update</code> and <code>/room/save</code> return errors (HTTP 500) when called directly but work fine in the web UI. These likely depend on browser session cookies or headers that the UI sends automatically.</p>
+</li>
+<li><p><strong>Easy Dashboards and Legacy Dashboards are different.</strong> <code>/dashboard/all</code> only lists legacy dashboards. Easy Dashboards are actually installed app instances and must be queried via <code>/installedapp/*</code> endpoints instead.</p>
+</li>
+</ol>
+<h3 id="reboot-amp-reset-behavior">Reboot &amp; Reset Behavior</h3>
+<ol start="12">
+<li><p><strong>Reboot and shutdown require POST requests.</strong> Unlike most other action endpoints, <code>/hub/reboot</code> and <code>/hub/shutdown</code> return 404 on GET — you must send a POST request (e.g., <code>curl -X POST http://hub/hub/reboot</code>). This is one of the few endpoints with proper method enforcement.</p>
+</li>
+<li><p><strong>Hub Mesh changes need a reboot.</strong> Enabling or disabling Hub Mesh returns a &quot;please reboot&quot; message. The change doesn&#39;t take effect until you actually reboot.</p>
+</li>
+<li><p><strong>Soft reset wipes your database but preserves radio settings.</strong> The soft reset on port 8081 (<code>/api/softResetHub</code>) deletes all your devices, apps, hub name, and settings — but keeps your Zigbee channel/network ID and Z-Wave node table intact. The hub comes back with a fresh database and the name &quot;My New Hub&quot;.</p>
+</li>
+<li><p><strong>Factory reset can break C-4 hubs.</strong> The <code>/api/factoryResetHub</code> endpoint crashes on C-4 hardware due to a missing serial port driver. Worse, the crash can corrupt the database, leaving the main hub application unable to start. Recovery requires a soft reset via port 8081. This likely works fine on newer hub models (C-7, C-8).</p>
+</li>
+</ol>
+<h3 id="maker-api-notes">Maker API Notes</h3>
+<ol start="16">
+<li><p><strong><code>postURL</code> is misleadingly named.</strong> Despite the name, <code>GET /postURL/{url}</code> sets a webhook callback URL — it does not make an outbound POST request. It returns <code>{&quot;url&quot;: &quot;&lt;url&gt;&quot;}</code>.</p>
+</li>
+<li><p><strong><code>/location</code> and <code>/info</code> don&#39;t exist yet.</strong> These Maker API endpoints return 404 on firmware 2.4.3 and 2.4.4. They may be added in newer firmware versions or require specific settings to be enabled.</p>
+</li>
+</ol>
+<hr>
+<p><em>Tested on C-8 Pro (firmware 2.4.4.156) and C-4 (firmware 2.4.3.103). Endpoints may vary by hub model and firmware version — see the Hub Model Compatibility table for known differences. Always exercise caution with 🔴 action endpoints.</em></p>
+
+</body>
+</html>

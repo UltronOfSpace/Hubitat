@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hubitat Device Viewer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; color: #333; }
+
+  .header { background: #2d6a4f; color: white; padding: 20px 30px; }
+  .header h1 { font-size: 1.5em; font-weight: 600; }
+  .header p { opacity: 0.85; margin-top: 4px; font-size: 0.9em; }
+
+  .controls { background: white; padding: 16px 30px; border-bottom: 1px solid #ddd; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .controls label { font-weight: 600; font-size: 0.85em; color: #555; }
+  .controls input, .controls select { padding: 8px 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 0.9em; }
+  .controls input[type="text"] { width: 220px; }
+  .controls button { padding: 8px 20px; background: #2d6a4f; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9em; font-weight: 600; }
+  .controls button:hover { background: #1b4332; }
+  .controls button:disabled { background: #999; cursor: not-allowed; }
+
+  .stats { padding: 12px 30px; background: #e8f5e9; font-size: 0.85em; color: #2d6a4f; display: none; }
+  .stats span { font-weight: 600; }
+
+  .container { padding: 20px 30px; }
+
+  .error { background: #fce4ec; color: #c62828; padding: 16px 30px; display: none; }
+  .error code { background: #f8bbd0; padding: 2px 6px; border-radius: 3px; }
+
+  .loading { text-align: center; padding: 60px; color: #888; display: none; }
+
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  thead { background: #f8f9fa; }
+  th { padding: 10px 14px; text-align: left; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.5px; color: #555; border-bottom: 2px solid #dee2e6; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { background: #e9ecef; }
+  th .sort-arrow { font-size: 0.7em; margin-left: 4px; opacity: 0.4; }
+  th.sorted .sort-arrow { opacity: 1; }
+  td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; font-size: 0.9em; }
+  tr:hover td { background: #f8f9fa; }
+
+  .status-active { color: #2e7d32; font-weight: 600; }
+  .status-inactive { color: #ef6c00; }
+  .status-disabled { color: #c62828; text-decoration: line-through; }
+
+  .room-badge { background: #e3f2fd; color: #1565c0; padding: 2px 8px; border-radius: 12px; font-size: 0.8em; white-space: nowrap; }
+  .type-sys { color: #888; font-size: 0.8em; }
+  .type-usr { color: #6a1b9a; font-size: 0.8em; font-weight: 600; }
+
+  .device-link { color: #1565c0; text-decoration: none; }
+  .device-link:hover { text-decoration: underline; }
+
+  .zigbee-id { font-family: monospace; font-size: 0.8em; color: #666; }
+  .net-id { font-family: monospace; font-size: 0.85em; }
+
+  .time-ago { color: #888; font-size: 0.85em; }
+
+  .empty { text-align: center; padding: 40px; color: #999; }
+
+  .how-it-works { background: white; margin: 20px 30px; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.9em; line-height: 1.7; }
+  .how-it-works h3 { margin-bottom: 10px; color: #2d6a4f; }
+  .how-it-works code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.85em; }
+  .how-it-works pre { background: #f5f5f5; padding: 12px; border-radius: 6px; overflow-x: auto; margin: 8px 0; }
+  .how-it-works pre code { background: none; }
+
+  .footer { text-align: center; padding: 20px; color: #999; font-size: 0.8em; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Hubitat Device Viewer</h1>
+  <p>A demonstration of reading data from your hub's <code style="background:rgba(255,255,255,0.2);padding:2px 6px;border-radius:3px">/device/list/data</code> endpoint</p>
+</div>
+
+<div class="controls">
+  <label for="hubIp">Hub Address:</label>
+  <input type="text" id="hubIp" placeholder="e.g. 192.168.1.100" value="">
+  <button id="fetchBtn" onclick="fetchDevices()">Load Devices</button>
+  <span style="color:#888;font-size:0.8em;margin-left:8px">(or paste JSON below)</span>
+  <input type="text" id="search" placeholder="Filter devices..." oninput="filterDevices()" style="display:none">
+  <select id="roomFilter" onchange="filterDevices()" style="display:none">
+    <option value="">All Rooms</option>
+  </select>
+</div>
+
+<div class="paste-area" id="pasteArea" style="padding:12px 30px;background:#fff8e1;border-bottom:1px solid #ddd;">
+  <p style="font-size:0.85em;margin-bottom:8px;"><strong>Can't connect?</strong> Open <code>http://&lt;your-hub-ip&gt;/device/list/data</code> in another tab, select all the text (Ctrl+A), copy it (Ctrl+C), then paste it here:</p>
+  <textarea id="jsonPaste" rows="4" style="width:100%;font-family:monospace;font-size:0.8em;padding:8px;border:1px solid #ccc;border-radius:6px;" placeholder="Paste the JSON from /device/list/data here..."></textarea>
+  <button onclick="loadFromPaste()" style="margin-top:6px;padding:6px 16px;background:#f57f17;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.85em;">Load from Paste</button>
+</div>
+
+<div class="error" id="error"></div>
+<div class="loading" id="loading">Loading devices from your hub...</div>
+<div class="stats" id="stats"></div>
+
+<div class="container">
+  <div id="tableContainer"></div>
+
+  <div class="how-it-works" id="howItWorks">
+    <h3>How This Works</h3>
+    <p>This page makes a single HTTP request to your Hubitat hub to fetch all device data:</p>
+    <pre><code>GET http://&lt;your-hub-ip&gt;/device/list/data</code></pre>
+    <p>The hub returns a <strong>JSON array</strong> — a list of objects, one per device. Each object contains fields like:</p>
+    <pre><code>{
+  "id": 42,
+  "displayName": "Living Room Lamp",
+  "deviceTypeName": "Generic Zigbee RGBW Light",
+  "deviceRoomName": "Living Room",
+  "status": "ACTIVE",
+  "lastActivityTime": "2026-04-17T21:25:43+0000",
+  "zigbeeId": "00124B00251B581C",
+  "type": "sys"      // "sys" = built-in driver, "usr" = user-installed driver
+}</code></pre>
+    <p>This page then parses that JSON and renders it as the table above. You could do the same thing in any programming language, home automation tool, or even a spreadsheet.</p>
+    <p><strong>Try it:</strong> Enter your hub's IP address above and click "Load Devices" to see your own device list.</p>
+    <p><strong>Note:</strong> This only works from your local network (the same network your hub is on). The hub does not require any login or password for this endpoint.</p>
+  </div>
+</div>
+
+<div class="footer">
+  Example from the <a href="https://community.hubitat.com/t/wiki-http-features-and-endpoints/49141">Hubitat HTTP Endpoints Wiki</a>
+</div>
+
+<script>
+let allDevices = [];
+let sortCol = 'displayName';
+let sortAsc = true;
+let hubBase = '';
+
+function loadFromPaste() {
+  const text = document.getElementById('jsonPaste').value.trim();
+  if (!text) { showError('Paste the JSON data first'); return; }
+  try {
+    const data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('Expected a JSON array');
+    processDeviceData(data);
+    document.getElementById('pasteArea').style.display = 'none';
+  } catch(e) {
+    showError('Invalid JSON: ' + e.message + '. Make sure you copied the entire response from /device/list/data');
+  }
+}
+
+function fetchDevices() {
+  const ip = document.getElementById('hubIp').value.trim();
+  if (!ip) { showError('Please enter your hub\'s IP address or hostname'); return; }
+
+  hubBase = 'http://' + ip.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+  const url = hubBase + '/device/list/data';
+
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('tableContainer').innerHTML = '';
+  document.getElementById('stats').style.display = 'none';
+  document.getElementById('fetchBtn').disabled = true;
+
+  fetch(url)
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(data => {
+      processDeviceData(data);
+      document.getElementById('pasteArea').style.display = 'none';
+    })
+    .catch(err => {
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('fetchBtn').disabled = false;
+      showError('Could not connect directly (browsers block cross-origin requests for security). <br><br><strong>Instead:</strong> Open <code><a href="' + url + '" target="_blank">' + url + '</a></code> in a new tab, copy all the text, and paste it in the box below.');
+    });
+}
+
+function processDeviceData(data) {
+  allDevices = data;
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('fetchBtn').disabled = false;
+  document.getElementById('search').style.display = '';
+  document.getElementById('howItWorks').style.display = 'none';
+  document.getElementById('error').style.display = 'none';
+
+  // Build room filter
+  const rooms = [...new Set(data.map(d => d.deviceRoomName).filter(Boolean))].sort();
+  const sel = document.getElementById('roomFilter');
+  sel.innerHTML = '<option value="">All Rooms (' + data.length + ')</option>';
+  rooms.forEach(r => {
+    const count = data.filter(d => d.deviceRoomName === r).length;
+    sel.innerHTML += '<option value="' + r + '">' + r + ' (' + count + ')</option>';
+  });
+  const unassigned = data.filter(d => !d.deviceRoomName).length;
+  if (unassigned) sel.innerHTML += '<option value="__none__">Unassigned (' + unassigned + ')</option>';
+  sel.style.display = '';
+
+  renderTable(data);
+  showStats(data);
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.innerHTML = msg;
+  el.style.display = 'block';
+}
+
+function showStats(data) {
+  const active = data.filter(d => d.status === 'ACTIVE').length;
+  const inactive = data.filter(d => d.status === 'INACTIVE').length;
+  const disabled = data.filter(d => d.disabled).length;
+  const rooms = new Set(data.map(d => d.deviceRoomName).filter(Boolean)).size;
+  const zigbee = data.filter(d => d.zigbeeId).length;
+  const zwave = data.filter(d => d.deviceTypeName && d.deviceTypeName.toLowerCase().includes('z-wave')).length;
+
+  document.getElementById('stats').innerHTML =
+    '<span>' + data.length + '</span> devices | ' +
+    '<span>' + active + '</span> active | ' +
+    '<span>' + inactive + '</span> inactive | ' +
+    (disabled ? '<span>' + disabled + '</span> disabled | ' : '') +
+    '<span>' + rooms + '</span> rooms | ' +
+    '<span>' + zigbee + '</span> Zigbee | ' +
+    '<span>' + zwave + '</span> Z-Wave';
+  document.getElementById('stats').style.display = 'block';
+}
+
+function filterDevices() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const room = document.getElementById('roomFilter').value;
+
+  let filtered = allDevices;
+  if (search) {
+    filtered = filtered.filter(d =>
+      (d.displayName || '').toLowerCase().includes(search) ||
+      (d.deviceTypeName || '').toLowerCase().includes(search) ||
+      (d.deviceNetworkId || '').toLowerCase().includes(search) ||
+      (d.zigbeeId || '').toLowerCase().includes(search)
+    );
+  }
+  if (room === '__none__') {
+    filtered = filtered.filter(d => !d.deviceRoomName);
+  } else if (room) {
+    filtered = filtered.filter(d => d.deviceRoomName === room);
+  }
+  renderTable(filtered);
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return mins + 'm ago';
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return days + 'd ago';
+  return Math.floor(days / 30) + 'mo ago';
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
+  filterDevices();
+}
+
+function renderTable(data) {
+  data = [...data].sort((a, b) => {
+    let va = a[sortCol], vb = b[sortCol];
+    if (va == null) va = '';
+    if (vb == null) vb = '';
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return sortAsc ? -1 : 1;
+    if (va > vb) return sortAsc ? 1 : -1;
+    return 0;
+  });
+
+  if (!data.length) {
+    document.getElementById('tableContainer').innerHTML = '<div class="empty">No devices match your filter.</div>';
+    return;
+  }
+
+  const cols = [
+    { key: 'displayName', label: 'Device' },
+    { key: 'deviceTypeName', label: 'Driver' },
+    { key: 'deviceRoomName', label: 'Room' },
+    { key: 'status', label: 'Status' },
+    { key: 'lastActivityTime', label: 'Last Activity' },
+    { key: 'deviceNetworkId', label: 'Network ID' },
+  ];
+
+  let html = '<table><thead><tr>';
+  cols.forEach(c => {
+    const sorted = sortCol === c.key;
+    const arrow = sorted ? (sortAsc ? '\u25B2' : '\u25BC') : '\u25B4';
+    html += '<th class="' + (sorted ? 'sorted' : '') + '" onclick="sortBy(\'' + c.key + '\')">' +
+      c.label + ' <span class="sort-arrow">' + arrow + '</span></th>';
+  });
+  html += '</tr></thead><tbody>';
+
+  data.forEach(d => {
+    const statusClass = d.disabled ? 'status-disabled' : (d.status === 'ACTIVE' ? 'status-active' : 'status-inactive');
+    const statusText = d.disabled ? 'Disabled' : (d.status || 'Unknown');
+    const typeClass = d.type === 'sys' ? 'type-sys' : 'type-usr';
+    const typeLabel = d.type === 'sys' ? 'built-in' : 'user';
+
+    html += '<tr>' +
+      '<td><a class="device-link" href="' + hubBase + '/device/edit/' + d.id + '" target="_blank">' +
+        escHtml(d.displayName || d.name) + '</a>' +
+        (d.zigbeeId ? ' <span class="zigbee-id" title="Zigbee ID">\uD83D\uDCE1</span>' : '') +
+      '</td>' +
+      '<td>' + escHtml(d.deviceTypeName || '') + ' <span class="' + typeClass + '">(' + typeLabel + ')</span></td>' +
+      '<td>' + (d.deviceRoomName ? '<span class="room-badge">' + escHtml(d.deviceRoomName) + '</span>' : '<span style="color:#ccc">-</span>') + '</td>' +
+      '<td><span class="' + statusClass + '">' + statusText + '</span></td>' +
+      '<td><span class="time-ago" title="' + (d.lastActivityTime || '') + '">' + timeAgo(d.lastActivityTime) + '</span></td>' +
+      '<td><span class="net-id">' + escHtml(d.deviceNetworkId || '') + '</span></td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// Auto-detect hub if on same network
+window.addEventListener('load', () => {
+  // Try to guess hub IP from common addresses
+  const saved = localStorage.getItem('hubitat-viewer-ip');
+  if (saved) document.getElementById('hubIp').value = saved;
+});
+
+// Save IP for next time
+const origFetch = fetchDevices;
+fetchDevices = function() {
+  const ip = document.getElementById('hubIp').value.trim();
+  if (ip) localStorage.setItem('hubitat-viewer-ip', ip);
+  origFetch();
+};
+</script>
+
+</body>
+</html>

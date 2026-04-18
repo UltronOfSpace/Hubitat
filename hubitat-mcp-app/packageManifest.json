@@ -1,0 +1,20 @@
+{
+  "packageName": "AI Bridge - MCP Server",
+  "author": "Ultronumus Of Space",
+  "version": "1.0.0",
+  "minimumHEVersion": "2.3.8.108",
+  "dateReleased": "2026-04-17",
+  "documentationLink": "https://github.com/UltronOfSpace/Hubitat/tree/main/AI_Bridge-MCP_Server#readme",
+  "communityLink": "",
+  "description": "Native Hubitat app that exposes MCP (Model Context Protocol) and OpenAPI endpoints so Claude Desktop, ChatGPT Custom GPTs, Grok, Gemini, and other AI assistants can control your hub directly — no external server required.",
+  "bundles": [
+    {
+      "id": "06854d96-4f5e-41d9-987a-2df8a1ec1003",
+      "name": "AI_Bridge-MCP_Server",
+      "namespace": "UltronOfSpace",
+      "location": "https://github.com/UltronOfSpace/Hubitat/raw/main/AI_Bridge-MCP_Server/dist/AI_Bridge-MCP_Server.zip",
+      "required": true,
+      "primary": true
+    }
+  ]
+}

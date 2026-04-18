@@ -1,0 +1,27 @@
+# Local tooling / plan files / memory / settings with secrets
+.claude/
+
+# Environment / secrets
+.env
+*.env
+**/secrets.md
+**/*.local.md
+
+# Node
+node_modules/
+
+# Build artifacts
+**/dist/*.zip
+
+# Research scan data (raw probe results, session notes with tokens/PII)
+endpoints-wiki/scan/
+
+# Large JS analysis bundles (can be regenerated from firmware)
+endpoints-wiki/analysis/*-split.txt
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

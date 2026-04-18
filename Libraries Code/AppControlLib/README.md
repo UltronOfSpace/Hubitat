@@ -1,5 +1,7 @@
 # AppControlLib - The Greasiest Hubitat Library in the Interwebs!
 
+> *Formerly known as `PauseResumeLib` (renamed 2025-06-01 when the feature set grew beyond just pause/resume).*
+
 > **⚠️ Legacy notice (2026):** Hubitat's built-in **Disable** toggle (available on the apps list and in every app's settings) now covers the main use case this library was built for. For most people, the built-in disable is simpler — it works on every installed app without any code changes. This library still has a niche use for custom apps where you want a prominent pause button on the app's own config page, parent/child coordinated pause state, or the "(Paused)" name tag. Kept here for reference and for any apps still importing it.
 
 This here AppControlLib is the best damn thing I ever made for Hubitat, and I ain’t even high right now! It’s like the ultimate control for your apps—lets you pause and resume stuff without breakin’ a sweat. You can use it for a single app, a big boss app with a bunch of little punk kid apps runnin’ around, or a little punk kid app that’s gotta do what it’s told by the big boss app. It puts buttons on your apps, shows you what’s paused or runnin’, and even slaps a "(Paused)" tag on the name when they’re takin’ a break—like taggin’ your stuff so you don’t lose it in the interwebs. I made this so you don’t gotta mess around with a bunch of code—just one line and you’re good to go!

@@ -1,6 +1,6 @@
 # Libraries Code - UltronOfSpace’s Hubitat Code Stash
 
-> **⚠️ Legacy notice (2026):** The library currently in here (`AppControlLib`, originally named `PauseResumeLib`) was built to add pause/resume buttons to Hubitat apps. Hubitat has since added a **built-in Disable** toggle on the apps list and in every app's settings, which covers the same use case for almost everyone. See [AppControlLib/README.md](AppControlLib/README.md) for the full notice and the remaining niche uses. Kept here for reference.
+> **⚠️ Legacy notice (2026):** The library currently in here (`AppControlLib`, originally named `AppControlLib` (formerly `PauseResumeLib`)) was built to add pause/resume buttons to Hubitat apps. Hubitat has since added a **built-in Disable** toggle on the apps list and in every app's settings, which covers the same use case for almost everyone. See [AppControlLib/README.md](AppControlLib/README.md) for the full notice and the remaining niche uses. Kept here for reference.
 
 ## Yo, What’s This Shit?
 
@@ -12,14 +12,14 @@ I’m usin’ my AI mate Grok from xAI to help put this together, ‘cause I’m
 
 This `Libraries Code` folder’s got the good stuff, when I get around to addin’ it:
 
-- **Library Files**: Code chunks that my Hubitat drivers and apps lean on. Like, shared functions or classes so I ain’t copy-pastin’ like a dumbass. For example, shit like `PauseResumeLib` (you mighta seen it) for pausin’ and resumin’ automations.
+- **Library Files**: Code chunks that my Hubitat drivers and apps lean on. Like, shared functions or classes so I ain’t copy-pastin’ like a dumbass. For example, shit like `AppControlLib` (formerly `PauseResumeLib`) (you mighta seen it) for pausin’ and resumin’ automations.
 - **Future Shit**: I’ll toss in more libraries as I make ‘em, whenever I ain’t nappin’ or grillin’ burgers. Could be anything from schedulin’ helpers to device handlers, dependin’ on what I feel like codin’.
 
-Right now, you might see stuff like `PauseResumeLib` or other files I’ve been tinkerin’ with. Each one’s got comments inside explainin’ what it does, so it ain’t a mystery.
+Right now, you might see stuff like `AppControlLib` (formerly `PauseResumeLib`) or other files I’ve been tinkerin’ with. Each one’s got comments inside explainin’ what it does, so it ain’t a mystery.
 
 ## How to Use This Crap
 
-1. **Find What You Need**: Poke around this folder and grab the library file you want, like `PauseResumeLib`. Check the file’s comments for what it does and what drivers or apps need it.
+1. **Find What You Need**: Poke around this folder and grab the library file you want, like `AppControlLib` (formerly `PauseResumeLib`). Check the file’s comments for what it does and what drivers or apps need it.
    - You can view or download files right from GitHub: `https://github.com/UltronOfSpace/Hubitat/tree/main/Libraries%20Code`.
 
 2. **Stick It in Hubitat**:

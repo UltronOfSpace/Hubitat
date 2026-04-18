@@ -90,7 +90,45 @@ Use Gemini Extension / custom tool. Paste the OpenAPI URL with the same access t
 
 ## What can the AI do?
 
-33 tools covering:
+**Your AI is fully room-aware and capability-aware.** Every device it sees includes its label, room, and what it can do. Talk to it like a person.
+
+### Example prompts
+
+**🏠 Control lights, switches, outlets**
+- *"Turn on the kitchen light"*
+- *"Turn off everything in the living room"*
+- *"Dim the bedroom lamp to 30%"*
+- *"Make the accent lights red"*
+- *"Set the kitchen bulbs to warm white"*
+- *"Turn off all the lights in the house"*
+
+**🔎 Ask about your home**
+- *"What devices do I have?"*
+- *"What's on right now?"*
+- *"Is anyone home?"* (checks motion/presence sensors)
+- *"What's the temperature in the kitchen?"*
+- *"Are any doors unlocked?"*
+- *"Show me every device that hasn't checked in today"*
+
+**🔐 Security, modes, scenes**
+- *"Arm the security system"* (HSM armAway)
+- *"Set mode to Night"*
+- *"Lock the front door"*
+- *"What mode is the house in?"*
+
+**🌡️ Hub diagnostics (power user stuff)**
+- *"What's my hub's temperature and memory usage?"*
+- *"Show me my Zigbee mesh"*
+- *"How many events has my kitchen outlet fired today?"*
+
+### Pro tips
+
+- The AI refers to your devices by their **labels** — whatever you named them in Hubitat. So "kitchen light" works if that's what you called it.
+- **Room awareness comes from Hubitat's room assignments.** Organize devices into rooms in your hub UI for better natural language control.
+- The AI can chain commands: *"Set the house to bedtime — turn off everything, lock all doors, and set mode to Night"*
+- You can ask it to verify: *"Turn off the TV and confirm it's off"*
+
+### Under the hood: 33 tools
 
 - **Devices** — list, get details, events, commands (on/off/setLevel/setColor/etc.)
 - **Modes** — list, switch active mode

@@ -68,9 +68,10 @@ def mainPage() {
                   submitOnChange: true
         }
 
-        // Step 3 — Follow the instructions for that AI
+        // Step 3 & 4 — Follow the instructions for that AI
         if (settings.aiClient) {
             renderAiInstructions(settings.aiClient)
+            renderExamplePrompts()
         } else {
             section {
                 paragraph "<i>⬆️ Choose your AI above, then copy-paste instructions will appear here.</i>"
@@ -272,6 +273,60 @@ ${cloudOpenApiUrl ? "<tr><td style='padding:6px;border-top:1px solid #ddd'><code
   <li><b>OpenAPI URL</b> = for clients that use OpenAPI actions (ChatGPT Custom GPTs, Grok, Gemini)</li>
   <li><b>Local URL</b> = faster, only works on the same Wi-Fi as your hub</li>
   <li><b>Cloud URL</b> = works from anywhere on the internet, routes through Hubitat's free cloud relay</li>
+</ul>
+""".toString()
+    }
+}
+
+private void renderExamplePrompts() {
+    section("Step 5: What to say to your AI") {
+        paragraph """
+<div style='background:#f0f7ff;border-left:4px solid #3498db;padding:12px;border-radius:4px;margin-bottom:10px'>
+<b>🗣️ Your AI is now room-aware and capability-aware.</b> It knows every device you picked, what room it's in, and what it can do. Talk to it like a person.
+</div>
+
+<b>🏠 Control lights, switches, outlets</b>
+<ul style='line-height:1.6;color:#222'>
+  <li><i>"Turn on the kitchen light"</i></li>
+  <li><i>"Turn off everything in the living room"</i></li>
+  <li><i>"Dim the bedroom lamp to 30%"</i></li>
+  <li><i>"Make the accent lights red"</i></li>
+  <li><i>"Set the kitchen bulbs to warm white"</i></li>
+  <li><i>"Turn off all the lights in the house"</i></li>
+</ul>
+
+<b>🔎 Ask about your home</b>
+<ul style='line-height:1.6;color:#222'>
+  <li><i>"What devices do I have?"</i></li>
+  <li><i>"What's on right now?"</i></li>
+  <li><i>"Is anyone home?"</i> (checks motion/presence)</li>
+  <li><i>"What's the temperature in the kitchen?"</i></li>
+  <li><i>"Are any doors unlocked?"</i></li>
+  <li><i>"Show me every device that hasn't checked in today"</i></li>
+</ul>
+
+<b>🔐 Security, modes, scenes</b>
+<ul style='line-height:1.6;color:#222'>
+  <li><i>"Arm the security system"</i> (HSM armAway)</li>
+  <li><i>"Set mode to Night"</i></li>
+  <li><i>"Lock the front door"</i></li>
+  <li><i>"What mode is the house in?"</i></li>
+</ul>
+
+<b>🌡️ Hub diagnostics (power user stuff)</b>
+<ul style='line-height:1.6;color:#222'>
+  <li><i>"What's my hub's temperature and memory usage?"</i></li>
+  <li><i>"Show me my Zigbee mesh"</i></li>
+  <li><i>"How many events has my kitchen outlet fired today?"</i></li>
+</ul>
+
+<b>💡 Pro tips</b>
+<ul style='line-height:1.6;color:#444;font-size:13px'>
+  <li>The AI refers to your devices by their <b>labels</b> — whatever you called them in Hubitat. So "kitchen light" works if that's what you named it.</li>
+  <li>Room names come from Hubitat's room assignments. Use <b>Rooms</b> in your hub UI to organize devices for better natural language control.</li>
+  <li>The AI can chain commands: <i>"Set the house to bedtime — turn off everything, lock all doors, and set mode to Night"</i></li>
+  <li>You can ask it to verify: <i>"Turn off the TV and confirm it's off"</i></li>
+  <li>The AI <b>cannot</b> reboot the hub, delete devices, disable radios, or do anything destructive — we didn't expose those capabilities on purpose.</li>
 </ul>
 """.toString()
     }

@@ -1,5 +1,7 @@
 # Libraries Code - UltronOfSpace’s Hubitat Code Stash
 
+> **⚠️ Legacy notice (2026):** The library currently in here (`AppControlLib`, originally named `PauseResumeLib`) was built to add pause/resume buttons to Hubitat apps. Hubitat has since added a **built-in Disable** toggle on the apps list and in every app's settings, which covers the same use case for almost everyone. See [AppControlLib/README.md](AppControlLib/README.md) for the full notice and the remaining niche uses. Kept here for reference.
+
 ## Yo, What’s This Shit?
 
 Yo, I’m Ultronumus Of Space (UltronOfSpace, boys), and this `Libraries Code` folder in my `UltronOfSpace/Hubitat` repo is where I chuck all my reusable code chunks for Hubitat smart home gear. Think of it as the toolbox I dig into when I’m not sprawled out shirtless with a liquor or stuffin’ my face with curry. This ain’t the drivers or apps themselves—those are elsewhere in the repo—but the glue that makes ‘em work without me writin’ the same crap over and over.

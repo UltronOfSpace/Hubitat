@@ -1,18 +1,18 @@
 /**
- *  AppControlLib Standalone App Example
+ *  PauseResumeLib Standalone App Example
  *
  *  Author: Ultronumus Of Space
  *  Creator: Grok, created by xAI
  *  Version: 1.0.3
  *  Date: June 2, 2025
- *  Description: A standalone app example that uses AppControlLib for pause/resume functionality.
+ *  Description: A standalone app example that uses PauseResumeLib for pause/resume functionality.
  *  License: MIT
  */
 
-#include UltronOfSpace.AppControlLib
+#include UltronOfSpace.PauseResumeLib
 
 definition(
-    name: "AppControlLib Standalone App Example",
+    name: "PauseResumeLib Standalone App Example",
     namespace: "UltronOfSpace",
     author: "Ultronumus Of Space",
     description: "A standalone app example with pause/resume functionality",
@@ -20,7 +20,7 @@ definition(
     iconUrl: "",
     iconX2Url: "",
     singleInstance: true,
-    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/Standalone/AppControlLib_Standalone_App_Example.groovy"
+    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/Standalone/PauseResumeLib_Standalone_App_Example.groovy"
 )
 
 preferences {

@@ -1,5 +1,5 @@
 /**
- *  AppControlLib
+ *  PauseResumeLib
  *
  *  Author: Ultronumus Of Space
  *  Creator: Grok, created by xAI
@@ -14,9 +14,9 @@ library (
     contributor: "Grok (xAI)",
     category: "Utilities",
     description: "A library for managing app control functionality, including pause/resume, state display, and naming for standalone, parent, and child apps in Hubitat",
-    name: "AppControlLib",
+    name: "PauseResumeLib",
     namespace: "UltronOfSpace",
-    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries%20Code/AppControlLib/AppControlLib.groovy"
+    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries%20Code/PauseResumeLib/PauseResumeLib.groovy"
 )
 
 // Single entry point to enable pause/resume functionality
@@ -25,7 +25,7 @@ def enablePauseResume() {
     try {
         app.metaClass.appButtonHandler = this.&appButtonHandler
     } catch (Exception e) {
-        log.error "AppControlLib: Failed to set up appButtonHandler - ${e.message}"
+        log.error "PauseResumeLib: Failed to set up appButtonHandler - ${e.message}"
     }
 }
 
@@ -129,7 +129,7 @@ private def unsubscribeEvents(Map options) {
         try {
             unsubscribe()
         } catch (Exception e) {
-            log.error "AppControlLib: Failed to unsubscribe events: ${e.message}"
+            log.error "PauseResumeLib: Failed to unsubscribe events: ${e.message}"
         }
     }
 }
@@ -139,7 +139,7 @@ private def unscheduleTasks(Map options) {
         try {
             unschedule()
         } catch (Exception e) {
-            log.error "AppControlLib: Failed to unschedule tasks: ${e.message}"
+            log.error "PauseResumeLib: Failed to unschedule tasks: ${e.message}"
         }
     }
 }
@@ -147,7 +147,7 @@ private def unscheduleTasks(Map options) {
 // Update the app with simplified pause state handling (for child or standalone apps)
 def updatedWithPause(Map options = [:], Closure initializeClosure) {
     if (initializeClosure == null) {
-        log.error "AppControlLib: initializeClosure is null, cannot proceed with update"
+        log.error "PauseResumeLib: initializeClosure is null, cannot proceed with update"
         return
     }
     if (!(options instanceof Map)) {
@@ -161,7 +161,7 @@ def updatedWithPause(Map options = [:], Closure initializeClosure) {
         try {
             initializeClosure()
         } catch (Exception e) {
-            log.error "AppControlLib: Failed to reinitialize app: ${e.message}"
+            log.error "PauseResumeLib: Failed to reinitialize app: ${e.message}"
         }
     }
     if (app.getParent() != null || (!childApps || childApps?.size() == 0)) {
@@ -181,31 +181,31 @@ def updateAppLabel(boolean paused) {
         app.updateLabel(newLabel)
         log.info "After updateAppLabel, app.getLabel() = ${app.getLabel()}"
     } catch (Exception e) {
-        log.error "AppControlLib: Failed to update app label: ${e.message}"
+        log.error "PauseResumeLib: Failed to update app label: ${e.message}"
     }
 }
 
 // Handle button clicks for pause/resume and saving app name
 def appButtonHandler(String buttonName) {
     if (buttonName == null) {
-        log.error "AppControlLib: buttonName is null, cannot handle button click"
+        log.error "PauseResumeLib: buttonName is null, cannot handle button click"
         return
     }
     switch (buttonName) {
         case "saveAppName":
             if (settings?.appName) {
                 def newLabel = settings.appName
-                log.info "AppControlLib: Saving new app name: ${newLabel}"
+                log.info "PauseResumeLib: Saving new app name: ${newLabel}"
                 try {
                     app.updateLabel(newLabel)
                     log.info "After updateLabel, app.getLabel() = ${app.getLabel()}"
                     updateAppLabel(state.isPaused ?: false)
                     app.removeSetting("appName")
                 } catch (Exception e) {
-                    log.error "AppControlLib: Failed to save new app name - ${e.message}"
+                    log.error "PauseResumeLib: Failed to save new app name - ${e.message}"
                 }
             } else {
-                log.warn "AppControlLib: No new app name provided to save"
+                log.warn "PauseResumeLib: No new app name provided to save"
             }
             break
         case "pauseApp":
@@ -223,14 +223,14 @@ def appButtonHandler(String buttonName) {
             resumeAllChildApps()
             break
         default:
-            log.warn "AppControlLib: Unhandled app button: ${buttonName}"
+            log.warn "PauseResumeLib: Unhandled app button: ${buttonName}"
     }
 }
 
 // Pause all child apps that are not already paused
 def pauseAllChildApps() {
     if (childApps == null) {
-        log.error "AppControlLib: childApps is null, cannot pause child apps"
+        log.error "PauseResumeLib: childApps is null, cannot pause child apps"
         return
     }
     childApps.each { child ->
@@ -242,7 +242,7 @@ def pauseAllChildApps() {
                 child.appButtonHandler("pauseApp")
             }
         } catch (Exception e) {
-            log.error "AppControlLib: Failed to pause child app: ${e.message}"
+            log.error "PauseResumeLib: Failed to pause child app: ${e.message}"
         }
     }
     state.childPauseStatus = "Paused all child apps at ${new Date()}"
@@ -251,7 +251,7 @@ def pauseAllChildApps() {
 // Resume all child apps that are not already resumed
 def resumeAllChildApps() {
     if (childApps == null) {
-        log.error "AppControlLib: childApps is null, cannot resume child apps"
+        log.error "PauseResumeLib: childApps is null, cannot resume child apps"
         return
     }
     childApps.each { child ->
@@ -263,7 +263,7 @@ def resumeAllChildApps() {
                 child.appButtonHandler("resumeApp")
             }
         } catch (Exception e) {
-            log.error "AppControlLib: Failed to resume child app: ${e.message}"
+            log.error "PauseResumeLib: Failed to resume child app: ${e.message}"
         }
     }
     state.childPauseStatus = "Resumed all child apps at ${new Date()}"
@@ -282,7 +282,7 @@ def getChildAppsPauseSummary() {
                 }
                 summary.total++
             } catch (Exception e) {
-                log.error "AppControlLib: Failed to get pause state for child app: ${e.message}"
+                log.error "PauseResumeLib: Failed to get pause state for child app: ${e.message}"
             }
         }
     }
@@ -299,11 +299,11 @@ def isPaused() {
 def appLog(String msg) {
     try {
         if (app?.name == null || app?.getLabel() == null) {
-            log."${msg.startsWith('warn:') || msg.startsWith('ERROR:') ? 'warn' : 'info'}"("AppControlLib: ${msg.replace('warn: ', '').replace('ERROR: ', '')}")
+            log."${msg.startsWith('warn:') || msg.startsWith('ERROR:') ? 'warn' : 'info'}"("PauseResumeLib: ${msg.replace('warn: ', '').replace('ERROR: ', '')}")
         } else {
             log."${msg.startsWith('warn:') || msg.startsWith('ERROR:') ? 'warn' : 'info'}"("${app.name} (${app.getLabel() ?: app.name}): ${msg.replace('warn: ', '').replace('ERROR: ', '')}")
         }
     } catch (Exception e) {
-        log.warn "AppControlLib: Failed to log message: ${msg}, error: ${e.message}"
+        log.warn "PauseResumeLib: Failed to log message: ${msg}, error: ${e.message}"
     }
 }

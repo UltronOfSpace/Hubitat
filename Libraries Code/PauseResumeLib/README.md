@@ -1,10 +1,10 @@
-# AppControlLib - The Greasiest Hubitat Library in the Interwebs!
+# PauseResumeLib - The Greasiest Hubitat Library in the Interwebs!
 
-> *Formerly known as `PauseResumeLib` (renamed 2025-06-01 when the feature set grew beyond just pause/resume).*
+> *Briefly renamed `PauseResumeLib` between 2025-06 and 2026-04, but reverted to `PauseResumeLib` since pause/resume is effectively all it does.*
 
 > **⚠️ Legacy notice (2026):** Hubitat's built-in **Disable** toggle (available on the apps list and in every app's settings) now covers the main use case this library was built for. For most people, the built-in disable is simpler — it works on every installed app without any code changes. This library still has a niche use for custom apps where you want a prominent pause button on the app's own config page, parent/child coordinated pause state, or the "(Paused)" name tag. Kept here for reference and for any apps still importing it.
 
-This here AppControlLib is the best damn thing I ever made for Hubitat, and I ain’t even high right now! It’s like the ultimate control for your apps—lets you pause and resume stuff without breakin’ a sweat. You can use it for a single app, a big boss app with a bunch of little punk kid apps runnin’ around, or a little punk kid app that’s gotta do what it’s told by the big boss app. It puts buttons on your apps, shows you what’s paused or runnin’, and even slaps a "(Paused)" tag on the name when they’re takin’ a break—like taggin’ your stuff so you don’t lose it in the interwebs. I made this so you don’t gotta mess around with a bunch of code—just one line and you’re good to go!
+This here PauseResumeLib is the best damn thing I ever made for Hubitat, and I ain’t even high right now! It’s like the ultimate control for your apps—lets you pause and resume stuff without breakin’ a sweat. You can use it for a single app, a big boss app with a bunch of little punk kid apps runnin’ around, or a little punk kid app that’s gotta do what it’s told by the big boss app. It puts buttons on your apps, shows you what’s paused or runnin’, and even slaps a "(Paused)" tag on the name when they’re takin’ a break—like taggin’ your stuff so you don’t lose it in the interwebs. I made this so you don’t gotta mess around with a bunch of code—just one line and you’re good to go!
 
 ---
 
@@ -19,7 +19,7 @@ I figured Hubitat folks needed somethin’ to make their apps easier to control,
 
 I even threw in some examples to show you how it works:
 
-- **Big Boss App and Little Punk Kid App**: A big boss app (`AppControlLib Parent App Example`) and its little punk kid app (`AppControlLib Child App Example`) in separate files to show you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
+- **Big Boss App and Little Punk Kid App**: A big boss app (`PauseResumeLib Parent App Example`) and its little punk kid app (`PauseResumeLib Child App Example`) in separate files to show you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
 - **Lone Wolf App**: The lone wolf app that don’t need nobody, just its own pause button.
 
 ---
@@ -39,14 +39,14 @@ This way’s recommended ‘cause it’s so easy even a greasy burger gut shirtl
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries%20Code/AppControlLib/AppControlLib.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries%20Code/PauseResumeLib/PauseResumeLib.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 ### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](AppControlLib.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](PauseResumeLib.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy raw file" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Libraries Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)
@@ -56,20 +56,20 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries%20Code/Ap
 
 ### Make Sure It’s There
 
-- Check the **Libraries Code** list. You should see "AppControlLib (UltronOfSpace)" sittin’ there like it owns the place. If it ain’t there, you messed up—try again, bud!
+- Check the **Libraries Code** list. You should see "PauseResumeLib (UltronOfSpace)" sittin’ there like it owns the place. If it ain’t there, you messed up—try again, bud!
 
 ---
 
 ## How to Use This Thing in Your Apps
 
-Usin’ AppControlLib is easier than gettin’ a six-paper joint rolled. Here’s how to make it work in any app—standalone, a big boss app, or a little punk kid app:
+Usin’ PauseResumeLib is easier than gettin’ a six-paper joint rolled. Here’s how to make it work in any app—standalone, a big boss app, or a little punk kid app:
 
 ### 1. Add the Library
 
 At the top of your app’s Groovy file, chuck in this line:
 
 ```
-#include UltronOfSpace.AppControlLib
+#include UltronOfSpace.PauseResumeLib
 ```
 
 That’s it—now you’ve got the power, like a rum and coke in your hand!
@@ -114,7 +114,7 @@ def initialize() {
 }
 ```
 
-If you’re makin’ a big boss app, your `uninstalled()` method should also clean up the little punk kid apps—check out `AppControlLib Parent App Example` for how to do it.
+If you’re makin’ a big boss app, your `uninstalled()` method should also clean up the little punk kid apps—check out `PauseResumeLib Parent App Example` for how to do it.
 
 ---
 
@@ -128,8 +128,8 @@ I ain’t no coder—I’m about as good at makin’ code as Mr. Lahey is at not
 
 I’ve got some examples to show you how this library gets ‘er done:
 
-- [**AppControlLib Parent And Child Example**: The big boss app and its little punk kid apps](ExampleApps/ParentAndChild/README.md)—shows you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
-- [**AppControlLib Standalone Example**: The lone wolf app](ExampleApps/StandAlone/README.md)—don’t need nobody, just its own pause button.
+- [**PauseResumeLib Parent And Child Example**: The big boss app and its little punk kid apps](ExampleApps/ParentAndChild/README.md)—shows you how to make a big boss app that makes a bunch of little punk kid apps and tells ‘em what to do, plus how the little punk kid app listens to the big boss.
+- [**PauseResumeLib Standalone Example**: The lone wolf app](ExampleApps/StandAlone/README.md)—don’t need nobody, just its own pause button.
 
 ---
 
@@ -145,4 +145,4 @@ If you’re stuck or wanna show off your Hubitat setup, hit me up on GitHub at `
 
 ---
 
-AppControlLib—greasy as heck and twice as decent, straight from the interwebs of the galaxy!
+PauseResumeLib—greasy as heck and twice as decent, straight from the interwebs of the galaxy!

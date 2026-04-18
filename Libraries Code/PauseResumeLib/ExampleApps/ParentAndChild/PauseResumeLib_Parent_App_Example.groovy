@@ -1,19 +1,19 @@
 /**
- *  AppControlLib Parent App Example
+ *  PauseResumeLib Parent App Example
  *
  *  Author: Ultronumus Of Space
  *  Creator: Grok, created by xAI
  *  Version: 1.0.3
  *  Date: June 2, 2025
  *  Description: A parent app example that allows creating child apps.
- *  Integrates with AppControlLib for app control functionality.
+ *  Integrates with PauseResumeLib for app control functionality.
  *  License: MIT
  */
 
-#include UltronOfSpace.AppControlLib
+#include UltronOfSpace.PauseResumeLib
 
 definition(
-    name: "AppControlLib Parent App Example",
+    name: "PauseResumeLib Parent App Example",
     namespace: "UltronOfSpace",
     author: "Ultronumus Of Space",
     description: "A parent app example that manages child apps with pause/resume functionality",
@@ -21,7 +21,7 @@ definition(
     iconUrl: "",
     iconX2Url: "",
     singleInstance: true,
-    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy"
+    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/PauseResumeLib_Parent_App_Example.groovy"
 )
 
 preferences {
@@ -36,7 +36,7 @@ def mainPage() {
         section("Child Apps") {
             app(
                 name: "childApps",
-                appName: "AppControlLib Child App Example",
+                appName: "PauseResumeLib Child App Example",
                 namespace: "UltronOfSpace",
                 title: "Create New Child App",
                 submitOnChange: true,
@@ -61,7 +61,7 @@ def uninstalled() {
     // Remove all child apps, including potential orphans
     def allChildApps = getAllChildApps()
     def childAppsToRemove = allChildApps.findAll { app ->
-        app.name == "AppControlLib Child App Example" && app.getNamespace() == "UltronOfSpace"
+        app.name == "PauseResumeLib Child App Example" && app.getNamespace() == "UltronOfSpace"
     }
     childAppsToRemove.each { child ->
         try {

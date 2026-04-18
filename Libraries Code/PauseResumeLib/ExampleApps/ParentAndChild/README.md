@@ -1,6 +1,6 @@
-# AppControlLib Parent And Child Example - The Boss App That Runs the Damn Show!
+# PauseResumeLib Parent And Child Example - The Boss App That Runs the Damn Show!
 
-This here AppControlLib Parent And Child Example includes a greasy big boss app (`AppControlLib Parent App Example`) for Hubitat that makes a bunch of little punk kid apps and tells ‘em what to do—it’s like I’m runnin’ the whole damn interwebs! It also includes the little punk kid app (`AppControlLib Child App Example`) that listens to the big boss app, with its own pause button. Both apps use the AppControlLib to let you pause and resume stuff without breakin’ a sweat. You get buttons to pause ‘em all at once, a summary to see who’s doin’ what, and it’s all decent as heck, bud!
+This here PauseResumeLib Parent And Child Example includes a greasy big boss app (`PauseResumeLib Parent App Example`) for Hubitat that makes a bunch of little punk kid apps and tells ‘em what to do—it’s like I’m runnin’ the whole damn interwebs! It also includes the little punk kid app (`PauseResumeLib Child App Example`) that listens to the big boss app, with its own pause button. Both apps use the PauseResumeLib to let you pause and resume stuff without breakin’ a sweat. You get buttons to pause ‘em all at once, a summary to see who’s doin’ what, and it’s all decent as heck, bud!
 
 ---
 
@@ -8,11 +8,11 @@ This here AppControlLib Parent And Child Example includes a greasy big boss app 
 
 I made this example ‘cause Hubitat folks need a way to run a bunch of little punk kid apps without losin’ their minds—like when I’m tryin’ to keep my growin’ operations from goin’ to heck. Here’s what it does:
 
-- The big boss app (`AppControlLib Parent App Example`) makes child apps usin’ the AppControlLib library—like growin’ new plants, but apps!
+- The big boss app (`PauseResumeLib Parent App Example`) makes child apps usin’ the PauseResumeLib library—like growin’ new plants, but apps!
 - Gives you "Pause All Child Apps" and "Resume All Child Apps" buttons to control all the child apps at once—kinda like tryin’ to stop a crapstorm in the interwebs.
 - Shows a two-row summary, like "2 child apps are paused." and "1 child app is runnin’."—so you know what’s up without diggin’ around.
-- The child app (`AppControlLib Child App Example`) gets its own "Pause"/"Resume" button to take a break when the big boss app says so—or if you feel like it.
-- Plugs into **AppControlLib** so it’s all slick and easy, like a rum and coke on a hot day.
+- The child app (`PauseResumeLib Child App Example`) gets its own "Pause"/"Resume" button to take a break when the big boss app says so—or if you feel like it.
+- Plugs into **PauseResumeLib** so it’s all slick and easy, like a rum and coke on a hot day.
 
 If you’ve got a bunch of child apps to wrangle, this example’s the way to go!
 
@@ -22,15 +22,15 @@ If you’ve got a bunch of child apps to wrangle, this example’s the way to go
 
 Before you can get this goin’, you gotta have some stuff ready:
 
-- **AppControlLib**: You need this library, or you’re dumber than a bag of hammers! Check the [AppControlLib README](../../README.md) for how to get it.
+- **PauseResumeLib**: You need this library, or you’re dumber than a bag of hammers! Check the [PauseResumeLib README](../../README.md) for how to get it.
 
 ---
 
 ## How to Get It Installed
 
-Here’s how to get this AppControlLib Parent And Child Example into your Hubitat setup—don’t mess it up, or I’ll lose my mind! You got two options: import it directly (recommended), or copy and paste the code from GitHub. Since this example includes both a parent app (`AppControlLib Parent App Example`) and a child app (`AppControlLib Child App Example`), you’ll need to install both files.
+Here’s how to get this PauseResumeLib Parent And Child Example into your Hubitat setup—don’t mess it up, or I’ll lose my mind! You got two options: import it directly (recommended), or copy and paste the code from GitHub. Since this example includes both a parent app (`PauseResumeLib Parent App Example`) and a child app (`PauseResumeLib Child App Example`), you’ll need to install both files.
 
-### Step 1: Install the Parent App (`AppControlLib Parent App Example`)
+### Step 1: Install the Parent App (`PauseResumeLib Parent App Example`)
 
 #### Option 1: Import Directly (Recommended)
 
@@ -43,14 +43,14 @@ This way’s recommended ‘cause it’s so easy even a greasy burger gut shirtl
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Libraries%20Code/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Parent_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Libraries%20Code/PauseResumeLib/ExampleApps/ParentAndChild/PauseResumeLib_Parent_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 #### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](AppControlLib_Parent_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](PauseResumeLib_Parent_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy raw file" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)
@@ -58,7 +58,7 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Librarie
 6. Paste the code into the editor.
 7. Click **Save**. Done, you greasy fella!
 
-### Step 2: Install the Child App (`AppControlLib Child App Example`)
+### Step 2: Install the Child App (`PauseResumeLib Child App Example`)
 
 #### Option 1: Import Directly (Recommended)
 
@@ -69,14 +69,14 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Librarie
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries Code/AppControlLib/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries Code/PauseResumeLib/ExampleApps/ParentAndChild/PauseResumeLib_Child_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 #### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](AppControlLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](PauseResumeLib_Child_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy raw file" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)
@@ -86,13 +86,13 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/Libraries Code/AppC
 
 ### Make Sure They’re There
 
-- Check the **Apps Code** list. You should see both "AppControlLib Parent App Example (UltronOfSpace)" and "AppControlLib Child App Example (UltronOfSpace)" sittin’ there like they own the place. If they ain’t there, you messed up—try again, bud!
+- Check the **Apps Code** list. You should see both "PauseResumeLib Parent App Example (UltronOfSpace)" and "PauseResumeLib Child App Example (UltronOfSpace)" sittin’ there like they own the place. If they ain’t there, you messed up—try again, bud!
 
 ### Add the Parent App to Hubitat
 
 1. Go to **Apps** in the Hubitat sidebar.
 2. Click **+ Add User App** in the top right corner.
-3. Pick "AppControlLib Parent App Example" from the list and click **Done**. Easy as takin’ a leak, bud!
+3. Pick "PauseResumeLib Parent App Example" from the list and click **Done**. Easy as takin’ a leak, bud!
 
 ---
 
@@ -102,12 +102,12 @@ Now that you’ve got it installed, here’s how to run your app show:
 
 ### 1. Open the Parent App
 
-In the Hubitat **Apps** list, click on "AppControlLib Parent App Example". You’ll see a "Control" section with buttons and a summary of your child apps, plus a "Child Apps" section to make new ones.
+In the Hubitat **Apps** list, click on "PauseResumeLib Parent App Example". You’ll see a "Control" section with buttons and a summary of your child apps, plus a "Child Apps" section to make new ones.
 
 ### 2. Make Some Child Apps
 
 1. In the "Child Apps" section, click "Create New Child App".
-2. That’ll whip up a new child app usin’ the AppControlLib library.
+2. That’ll whip up a new child app usin’ the PauseResumeLib library.
 3. If you wanna name it somethin’, pop into the child app’s settings and set a custom name—like namin’ a kitty or some stuff.
 4. Make as many child apps as you want—go nuts, eh! If you don’t pick a name, it’ll default to "Little Punk Kid App", but heads up, you might end up with duplicates if you don’t name ‘em yourself.
 5. Click **Done** to save your mess.
@@ -125,7 +125,7 @@ Wanna mess with a child app on its own? Open it from the Hubitat **Apps** list�
 - In the "Control" section of the child app, hit the "Pause" button to make it chill out.
 - Its name in the Hubitat apps list’ll get a red "(Paused)" tag, so you know it’s nappin’.
 - Hit "Resume" to wake it up, and that tag’ll bugger off faster than I can roll a joint!
-- The "Placeholder for Additional Code" section is where you can chuck in your own stuff—settings, whatever. Pop into `AppControlLib_Child_App_Example.groovy` and mess with the `initialize()` method if you wanna add subscriptions or schedules, bud.
+- The "Placeholder for Additional Code" section is where you can chuck in your own stuff—settings, whatever. Pop into `PauseResumeLib_Child_App_Example.groovy` and mess with the `initialize()` method if you wanna add subscriptions or schedules, bud.
 
 ---
 
@@ -147,4 +147,4 @@ If you’re stuck or wanna show off your Hubitat setup, hit me up on GitHub at `
 
 ---
 
-AppControlLib Parent And Child Example—greasy as heck and twice as decent, straight from the interwebs of the galaxy!
+PauseResumeLib Parent And Child Example—greasy as heck and twice as decent, straight from the interwebs of the galaxy!

@@ -1,6 +1,6 @@
-# AppControlLib Standalone Example - The Lone Wolf App That Don’t Need Nothin’!
+# PauseResumeLib Standalone Example - The Lone Wolf App That Don’t Need Nothin’!
 
-This here AppControlLib Standalone Example is a lone wolf app for Hubitat that don’t need nobody else—it’s like me when I’m growin’ my dope plants and don’t wanna deal with anyone’s nonsense! It uses the AppControlLib to let you pause and resume whenever you feel like it, with a button to take a break and a "(Paused)" tag on its name when it’s nappin’. Decent as heck, bud!
+This here PauseResumeLib Standalone Example is a lone wolf app for Hubitat that don’t need nobody else—it’s like me when I’m growin’ my dope plants and don’t wanna deal with anyone’s nonsense! It uses the PauseResumeLib to let you pause and resume whenever you feel like it, with a button to take a break and a "(Paused)" tag on its name when it’s nappin’. Decent as heck, bud!
 
 ---
 
@@ -11,7 +11,7 @@ I made this example ‘cause Hubitat folks sometimes just need a single app to d
 - Works all on its lonesome—no big boss app, no little punk kid apps, just pure app action.
 - Gives you a "Pause"/"Resume" button to chill out whenever you want.
 - Slaps a "(Paused)" tag on its name when it’s out, so you ain’t confused like I get with my strains.
-- Plugs into **AppControlLib** so it’s all slick and easy, like a rum and coke on a hot day.
+- Plugs into **PauseResumeLib** so it’s all slick and easy, like a rum and coke on a hot day.
 
 If you just need a single app to do its thing, this example’s the way to go!
 
@@ -21,13 +21,13 @@ If you just need a single app to do its thing, this example’s the way to go!
 
 Before you can get this goin’, you gotta have one thing ready:
 
-- **AppControlLib**: You need this library, or you’re dumber than a bag of hammers! Check the [AppControlLib README](../../README.md) for how to get it.
+- **PauseResumeLib**: You need this library, or you’re dumber than a bag of hammers! Check the [PauseResumeLib README](../../README.md) for how to get it.
 
 ---
 
 ## How to Get It Installed
 
-Here’s how to get this AppControlLib Standalone Example into your Hubitat setup—don’t mess it up, or I’ll lose my mind! You got two options: import it directly (recommended), or copy and paste the code from GitHub.
+Here’s how to get this PauseResumeLib Standalone Example into your Hubitat setup—don’t mess it up, or I’ll lose my mind! You got two options: import it directly (recommended), or copy and paste the code from GitHub.
 
 ### Option 1: Import Directly (Recommended)
 
@@ -40,14 +40,14 @@ This way’s recommended ‘cause it’s so easy even a greasy burger gut shirtl
 5. Paste the following URL (you can copy it by clicking the copy button):
 
 ```
-https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Libraries%20Code/AppControlLib/ExampleApps/StandAlone/AppControlLib_Standalone_App_Example.groovy
+https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Libraries%20Code/PauseResumeLib/ExampleApps/StandAlone/PauseResumeLib_Standalone_App_Example.groovy
 ```
 
 6. Click **Import**, then **Save**. Done, you greasy fella!
 
 ### Option 2: Copy and Paste from GitHub
 
-1. Head over to [this link right here](AppControlLib_Standalone_App_Example.groovy)—don’t lose it like I lose my dope!
+1. Head over to [this link right here](PauseResumeLib_Standalone_App_Example.groovy)—don’t lose it like I lose my dope!
 2. Click the "Copy raw file" button (it’s the little clipboard icon near the top right of the code)—that’ll grab all the code faster than you can say "decent"!
 3. Log into your Hubitat Elevation hub—like sneakin’ into the interwebs after dark.
 4. Go to **Apps Code** on the sidebar—don’t get lost, you goofball! (If you don’t see it, click the arrow next to **Developer Tools** to expand the list.)
@@ -57,13 +57,13 @@ https://raw.githubusercontent.com/UltronOfSpace/Hubitat/refs/heads/main/Librarie
 
 ### Make Sure It’s There
 
-- Check the **Apps Code** list. You should see "AppControlLib Standalone App Example (UltronOfSpace)" sittin’ there like it owns the place. If it ain’t there, you messed up—try again, bud!
+- Check the **Apps Code** list. You should see "PauseResumeLib Standalone App Example (UltronOfSpace)" sittin’ there like it owns the place. If it ain’t there, you messed up—try again, bud!
 
 ### Add the App to Hubitat
 
 1. Go to **Apps** in the Hubitat sidebar.
 2. Click **+ Add User App** in the top right corner.
-3. Pick "AppControlLib Standalone App Example" from the list and click **Done**. Easy as takin’ a leak, bud!
+3. Pick "PauseResumeLib Standalone App Example" from the list and click **Done**. Easy as takin’ a leak, bud!
 
 ---
 
@@ -73,17 +73,17 @@ Once you’ve got it installed, here’s how to mess with it:
 
 ### 1. Open the App
 
-In the Hubitat **Apps** list, click on "AppControlLib Standalone App Example". You’ll see a "Control" section with a "Pause"/"Resume" button, plus a placeholder section for extra stuff.
+In the Hubitat **Apps** list, click on "PauseResumeLib Standalone App Example". You’ll see a "Control" section with a "Pause"/"Resume" button, plus a placeholder section for extra stuff.
 
 ### 2. Take a Break
 
 1. In the "Control" section, hit the "Pause" button to make this app chill out.
-2. Its name in the Hubitat apps list’ll get a red "(Paused)" tag, like "AppControlLib Standalone App Example (Paused)"—fancy, eh!
+2. Its name in the Hubitat apps list’ll get a red "(Paused)" tag, like "PauseResumeLib Standalone App Example (Paused)"—fancy, eh!
 3. Hit "Resume" to wake it up, and that tag’ll bugger off faster than I can roll a joint!
 
 ### 3. Add Your Own Stuff
 
-The "Placeholder for Additional Code" section is where you can chuck in your own stuff—settings, whatever. Pop into `AppControlLib_Standalone_App_Example.groovy` and mess with the `initialize()` method if you wanna add subscriptions or schedules, bud.
+The "Placeholder for Additional Code" section is where you can chuck in your own stuff—settings, whatever. Pop into `PauseResumeLib_Standalone_App_Example.groovy` and mess with the `initialize()` method if you wanna add subscriptions or schedules, bud.
 
 ---
 
@@ -105,4 +105,4 @@ If you’re stuck or wanna show off your Hubitat setup, hit me up on GitHub at `
 
 ---
 
-AppControlLib Standalone Example—greasy as heck and twice as decent, straight from the interwebs of the galaxy!
+PauseResumeLib Standalone Example—greasy as heck and twice as decent, straight from the interwebs of the galaxy!

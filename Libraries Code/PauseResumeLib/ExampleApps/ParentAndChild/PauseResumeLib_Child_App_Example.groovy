@@ -1,27 +1,27 @@
 /**
- *  AppControlLib Child App Example
+ *  PauseResumeLib Child App Example
  *
  *  Author: Ultronumus Of Space
  *  Creator: Grok, created by xAI
  *  Version: 1.0.3
  *  Date: June 2, 2025
  *  Description: A child app example that displays its name and includes a placeholder for additional code.
- *  Integrates with AppControlLib for app control functionality.
+ *  Integrates with PauseResumeLib for app control functionality.
  *  License: MIT
  */
 
-#include UltronOfSpace.AppControlLib
+#include UltronOfSpace.PauseResumeLib
 
 definition(
-    name: "AppControlLib Child App Example",
+    name: "PauseResumeLib Child App Example",
     namespace: "UltronOfSpace",
     author: "Ultronumus Of Space",
     description: "A child app example with pause/resume functionality",
     category: "Utilities",
-    parent: "UltronOfSpace:AppControlLib Parent App Example",
+    parent: "UltronOfSpace:PauseResumeLib Parent App Example",
     iconUrl: "",
     iconX2Url: "",
-    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/AppControlLib_Child_App_Example.groovy"
+    importUrl: "https://raw.githubusercontent.com/UltronOfSpace/Hubitat/main/ExampleApps/ParentAndChild/PauseResumeLib_Child_App_Example.groovy"
 )
 
 preferences {

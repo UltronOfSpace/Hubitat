@@ -43,96 +43,37 @@ def mainPage() {
     }
 
     dynamicPage(name: "mainPage", title: "AI Bridge - MCP Server", install: true, uninstall: true) {
-        section("Devices") {
-            paragraph "Pick the devices the AI can see and control. (The AI is sandboxed to only these devices.)"
+
+        // Step 1 — Devices
+        section("Step 1: Pick your devices") {
+            paragraph "<small style='color:#666'>The AI will only see and control these devices. Nothing else on your hub is exposed.</small>"
             input name: "selectedDevices", type: "capability.*",
-                  title: "Devices", multiple: true, required: false
+                  title: "Which devices should the AI control?", multiple: true, required: false
         }
 
-        if (app.installationState == "COMPLETE" && state.accessToken) {
-            String localBase = getBaseUrl()
-            String cloudBase = getCloudBaseUrl()
-            String token = state.accessToken
+        if (!state.accessToken) return  // shouldn't happen, but guard
 
-            String localMcpUrl = "${localBase}/mcp?access_token=${token}"
-            String localOpenApiUrl = "${localBase}/openapi.json?access_token=${token}"
-            String cloudMcpUrl = cloudBase ? "${cloudBase}/mcp?access_token=${token}" : null
-            String cloudOpenApiUrl = cloudBase ? "${cloudBase}/openapi.json?access_token=${token}" : null
+        // Step 2 — Pick your AI
+        section("Step 2: Pick your AI") {
+            input name: "aiClient", type: "enum",
+                  title: "Which AI will you use?",
+                  options: [
+                      "chatgpt": "ChatGPT (phone app, website, or desktop)",
+                      "claude":  "Claude Desktop (computer app)",
+                      "grok":    "Grok",
+                      "gemini":  "Google Gemini",
+                      "other":   "Other / show me everything"
+                  ],
+                  required: false,
+                  submitOnChange: true
+        }
 
-            section("🏠 Local URLs (same Wi-Fi as hub)") {
-                paragraph "Use these from a computer or phone <b>on your home network</b>. Fastest, stays on your LAN, works offline."
-                paragraph buildUrlPanel("Local MCP endpoint", localMcpUrl,
-                    "For Claude Desktop, Cursor, and other MCP-native clients.")
-                paragraph buildUrlPanel("Local OpenAPI spec", localOpenApiUrl,
-                    "For ChatGPT Custom GPTs on the same Wi-Fi as your hub.")
-            }
-
-            if (cloudBase) {
-                section("☁️ Cloud URLs (anywhere on the internet)") {
-                    paragraph "Use these for <b>AI apps that live in the cloud</b> — ChatGPT iPhone app, Grok, Gemini, or Claude Desktop when you're away from home. Hubitat's cloud relay is <b>free</b> and already included with your hub."
-                    paragraph buildUrlPanel("Cloud MCP endpoint", cloudMcpUrl,
-                        "Remote access via Hubitat's built-in cloud relay.")
-                    paragraph buildUrlPanel("Cloud OpenAPI spec", cloudOpenApiUrl,
-                        "Paste this into ChatGPT Custom GPT Actions to control your hub from anywhere.")
-                }
-            } else {
-                section("☁️ Cloud access (not available)") {
-                    paragraph """
-<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
-<b>Your hub is not registered with Hubitat's cloud.</b><br>
-Cloud URLs are required for AI apps that live on the internet (ChatGPT iPhone app, Grok, Gemini).
-To enable: go to <b>Settings → Hub Details → Register Hub</b>. It's free. Then come back and reload this page.
-</div>
-""".toString()
-                }
-            }
-
-            section("Access token (if an AI client asks separately)") {
-                paragraph buildUrlPanel("Token", token, null)
-            }
-
-            section("🤖 Claude Desktop setup") {
-                paragraph """
-<ol style='line-height:1.7'>
-  <li>Open Claude Desktop → <b>Settings</b> → <b>Developer</b> → <b>Edit Config</b></li>
-  <li>Add this inside <code>mcpServers</code>:</li>
-</ol>
-<pre style='background:#f4f4f4;padding:10px;border-radius:4px;font-size:12px;overflow-x:auto'>{
-  "mcpServers": {
-    "hubitat": {
-      "command": "npx",
-      "args": ["mcp-remote", "${cloudMcpUrl ?: localMcpUrl}"]
-    }
-  }
-}</pre>
-<ol start='3' style='line-height:1.7'>
-  <li>Restart Claude Desktop</li>
-  <li>Try: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light."</i></li>
-</ol>
-<small style='color:#666'>Tip: use the <b>cloud URL</b> if you use Claude Desktop from multiple locations. Use the <b>local URL</b> if you only connect from home.</small>
-""".toString()
-            }
-
-            section("💬 ChatGPT Custom GPT setup (iPhone / Android / web)") {
-                paragraph """
-<ol style='line-height:1.7'>
-  <li>In ChatGPT, go to <b>Explore GPTs</b> → <b>Create a GPT</b></li>
-  <li>Click <b>Configure</b> → <b>Actions</b> → <b>Create new action</b></li>
-  <li>Click <b>Import from URL</b> and paste the <b>${cloudBase ? 'Cloud OpenAPI spec' : 'Local OpenAPI spec'}</b> URL above</li>
-  <li>Under <b>Authentication</b>, choose <b>API Key</b>:
-    <ul>
-      <li>Auth Type: <b>Custom</b></li>
-      <li>Custom Header Name: leave blank (token is in the URL)</li>
-    </ul>
-  </li>
-  <li>Save the GPT. The integration persists across every conversation — on web, desktop, and the mobile app.</li>
-</ol>
-${cloudBase ? "" : "<div style='color:#c0392b;font-size:13px'><b>Note:</b> without cloud access, this only works when ChatGPT can reach your hub (e.g. same Wi-Fi, or via a tunnel service).</div>"}
-""".toString()
-            }
-
-            section("🔎 Grok / Gemini / other AI clients") {
-                paragraph "Use the client's custom action / tool / extension feature. Paste the ${cloudBase ? 'Cloud' : 'Local'} OpenAPI URL. Done."
+        // Step 3 — Follow the instructions for that AI
+        if (settings.aiClient) {
+            renderAiInstructions(settings.aiClient)
+        } else {
+            section {
+                paragraph "<i>⬆️ Choose your AI above, then copy-paste instructions will appear here.</i>"
             }
         }
 
@@ -141,6 +82,208 @@ ${cloudBase ? "" : "<div style='color:#c0392b;font-size:13px'><b>Note:</b> witho
                   title: "Enable debug logging", defaultValue: false
         }
     }
+}
+
+private void renderAiInstructions(String client) {
+    String localBase = getBaseUrl()
+    String cloudBase = getCloudBaseUrl()
+    String token = state.accessToken
+    String localMcpUrl = "${localBase}/mcp?access_token=${token}"
+    String localOpenApiUrl = "${localBase}/openapi.json?access_token=${token}"
+    String cloudMcpUrl = cloudBase ? "${cloudBase}/mcp?access_token=${token}" : null
+    String cloudOpenApiUrl = cloudBase ? "${cloudBase}/openapi.json?access_token=${token}" : null
+
+    switch (client) {
+        case "chatgpt":  renderChatGptInstructions(cloudOpenApiUrl, localOpenApiUrl, cloudBase != null, token); break
+        case "claude":   renderClaudeInstructions(cloudMcpUrl, localMcpUrl, cloudBase != null); break
+        case "grok":     renderGrokInstructions(cloudOpenApiUrl, localOpenApiUrl, cloudBase != null, token); break
+        case "gemini":   renderGeminiInstructions(cloudOpenApiUrl, localOpenApiUrl, cloudBase != null, token); break
+        case "other":    renderEverything(localMcpUrl, localOpenApiUrl, cloudMcpUrl, cloudOpenApiUrl, token); break
+    }
+}
+
+private void renderChatGptInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
+    String urlToUse = hasCloud ? cloudUrl : localUrl
+
+    section("Step 3: Copy this URL") {
+        paragraph buildBigCopyBox(urlToUse)
+    }
+
+    section("Step 4: Paste it into ChatGPT") {
+        paragraph """
+<ol style='line-height:1.9;font-size:14px'>
+  <li>Open <b>ChatGPT</b> (website, phone app, or desktop — doesn't matter)</li>
+  <li>Click <b>your profile picture</b> → <b>My GPTs</b> → <b>Create a GPT</b><br>
+      <small style='color:#666'>(or: <b>Explore GPTs</b> → <b>+ Create</b>)</small></li>
+  <li>Click the <b>Configure</b> tab</li>
+  <li>Scroll down, click <b>Create new action</b></li>
+  <li>Click <b>Import from URL</b> and paste the URL from Step 3</li>
+  <li>Scroll down to <b>Authentication</b>, click the gear icon:
+    <ul>
+      <li>Auth Type: <b>API Key</b></li>
+      <li>API Key: <code>${token}</code> (copy this)</li>
+      <li>Auth Type dropdown: <b>Custom</b></li>
+      <li>Custom Header Name: leave empty</li>
+    </ul>
+  </li>
+  <li>Click <b>Save</b>, then <b>Create</b> at the top</li>
+  <li>Give the GPT a name (like "My Smart Home") and save</li>
+</ol>
+<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
+  <b>✅ Done forever.</b> Now say things like <i>"turn on the kitchen light"</i> in any future chat with that GPT.
+  Works from your phone, computer, anywhere.
+</div>
+""".toString()
+    }
+
+    if (!hasCloud) {
+        section {
+            paragraph """
+<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
+<b>⚠️ Heads up:</b> your hub isn't registered with Hubitat cloud, so ChatGPT can only reach it when you're <b>on your home Wi-Fi</b>.
+To fix: <b>Settings → Hub Details → Register Hub</b> (free, 10 seconds). Then reload this page.
+</div>
+""".toString()
+        }
+    }
+}
+
+private void renderClaudeInstructions(String cloudUrl, String localUrl, boolean hasCloud) {
+    String urlToUse = hasCloud ? cloudUrl : localUrl
+
+    section("Step 3: Copy this URL") {
+        paragraph buildBigCopyBox(urlToUse)
+    }
+
+    section("Step 4: Paste it into Claude Desktop's config") {
+        paragraph """
+<ol style='line-height:1.9;font-size:14px'>
+  <li>Open <b>Claude Desktop</b> on your computer</li>
+  <li>Click the hamburger menu (three lines, top left) → <b>File</b> → <b>Settings</b><br>
+      <small style='color:#666'>(on Mac: <b>Claude</b> menu → <b>Settings</b>)</small></li>
+  <li>Click <b>Developer</b> in the left sidebar</li>
+  <li>Click <b>Edit Config</b> — this opens a file in your text editor</li>
+  <li>Replace everything in the file with this (the URL is already filled in for you):</li>
+</ol>
+<pre style='background:#f4f4f4;padding:12px;border-radius:4px;font-size:12px;overflow-x:auto;border:1px solid #ddd'>{
+  "mcpServers": {
+    "hubitat": {
+      "command": "npx",
+      "args": ["mcp-remote", "${urlToUse}"]
+    }
+  }
+}</pre>
+<ol start='6' style='line-height:1.9;font-size:14px'>
+  <li>Save the file</li>
+  <li>Completely quit Claude Desktop and reopen it</li>
+</ol>
+<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
+  <b>✅ Done forever.</b> Now ask: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light"</i>.
+</div>
+""".toString()
+    }
+}
+
+private void renderGrokInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
+    String urlToUse = hasCloud ? cloudUrl : localUrl
+
+    section("Step 3: Copy this URL") {
+        paragraph buildBigCopyBox(urlToUse)
+    }
+
+    section("Step 4: Paste it into Grok") {
+        paragraph """
+<ol style='line-height:1.9;font-size:14px'>
+  <li>Open <b>Grok</b> (on x.com or in the app)</li>
+  <li>Go to <b>custom tools</b> / <b>actions</b> / <b>integrations</b> (the wording may vary)</li>
+  <li>Paste the URL from Step 3</li>
+  <li>When asked for an API key or token, paste: <code>${token}</code></li>
+</ol>
+<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
+  <b>✅ Done.</b> Grok can now control your smart home.
+</div>
+<small style='color:#666'>Grok's custom tool feature is still evolving — if the UI doesn't match these steps, look for "custom actions" or "external tools" in your settings.</small>
+""".toString()
+    }
+
+    if (!hasCloud) {
+        section {
+            paragraph """
+<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
+<b>⚠️ Register your hub first.</b> Grok runs in the cloud and needs cloud access.
+<b>Settings → Hub Details → Register Hub</b> (free). Then reload this page.
+</div>
+""".toString()
+        }
+    }
+}
+
+private void renderGeminiInstructions(String cloudUrl, String localUrl, boolean hasCloud, String token) {
+    String urlToUse = hasCloud ? cloudUrl : localUrl
+
+    section("Step 3: Copy this URL") {
+        paragraph buildBigCopyBox(urlToUse)
+    }
+
+    section("Step 4: Paste it into Gemini") {
+        paragraph """
+<ol style='line-height:1.9;font-size:14px'>
+  <li>Open <b>Gemini</b> (gemini.google.com or the mobile app)</li>
+  <li>Go to <b>Extensions</b> or <b>custom tools</b></li>
+  <li>Add a new custom tool, paste the URL from Step 3</li>
+  <li>When asked for an API key, paste: <code>${token}</code></li>
+</ol>
+<div style='background:#e8f5e9;border-left:4px solid #27ae60;padding:10px;border-radius:4px;margin-top:8px'>
+  <b>✅ Done.</b> Gemini can now control your smart home.
+</div>
+""".toString()
+    }
+
+    if (!hasCloud) {
+        section {
+            paragraph """
+<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
+<b>⚠️ Register your hub first.</b> Gemini runs in the cloud and needs cloud access.
+<b>Settings → Hub Details → Register Hub</b> (free). Then reload this page.
+</div>
+""".toString()
+        }
+    }
+}
+
+private void renderEverything(String localMcpUrl, String localOpenApiUrl, String cloudMcpUrl, String cloudOpenApiUrl, String token) {
+    section("All URLs") {
+        paragraph """
+<table style='width:100%;border-collapse:collapse;font-size:13px'>
+<tr style='background:#f4f4f4'><th style='text-align:left;padding:6px'>URL</th><th style='text-align:left;padding:6px'>For</th></tr>
+<tr><td style='padding:6px;border-top:1px solid #ddd'><code style='word-break:break-all'>${localMcpUrl}</code></td><td style='padding:6px;border-top:1px solid #ddd'>MCP clients on home Wi-Fi</td></tr>
+<tr><td style='padding:6px;border-top:1px solid #ddd'><code style='word-break:break-all'>${localOpenApiUrl}</code></td><td style='padding:6px;border-top:1px solid #ddd'>OpenAPI clients on home Wi-Fi</td></tr>
+${cloudMcpUrl ? "<tr><td style='padding:6px;border-top:1px solid #ddd'><code style='word-break:break-all'>${cloudMcpUrl}</code></td><td style='padding:6px;border-top:1px solid #ddd'>MCP clients anywhere (cloud)</td></tr>" : ""}
+${cloudOpenApiUrl ? "<tr><td style='padding:6px;border-top:1px solid #ddd'><code style='word-break:break-all'>${cloudOpenApiUrl}</code></td><td style='padding:6px;border-top:1px solid #ddd'>OpenAPI clients anywhere (cloud)</td></tr>" : ""}
+<tr><td style='padding:6px;border-top:1px solid #ddd'><code>${token}</code></td><td style='padding:6px;border-top:1px solid #ddd'>Access token (standalone)</td></tr>
+</table>
+""".toString()
+    }
+
+    section("What to use where") {
+        paragraph """
+<ul style='line-height:1.7'>
+  <li><b>MCP URL</b> = for clients that speak the Model Context Protocol directly (Claude Desktop, Cursor, etc.)</li>
+  <li><b>OpenAPI URL</b> = for clients that use OpenAPI actions (ChatGPT Custom GPTs, Grok, Gemini)</li>
+  <li><b>Local URL</b> = faster, only works on the same Wi-Fi as your hub</li>
+  <li><b>Cloud URL</b> = works from anywhere on the internet, routes through Hubitat's free cloud relay</li>
+</ul>
+""".toString()
+    }
+}
+
+private String buildBigCopyBox(String url) {
+    return """
+<div style='background:#eaf4fe;border:2px solid #3498db;border-radius:6px;padding:12px;margin-bottom:4px'>
+  <div style='font-size:11px;color:#666;margin-bottom:4px'>Tap and hold to copy (mobile) — or triple-click to select</div>
+  <code style='display:block;word-break:break-all;background:#fff;padding:10px;border-radius:4px;font-size:12px;user-select:all;-webkit-user-select:all'>${url}</code>
+</div>
+""".toString()
 }
 
 private oauthRequiredPage() {

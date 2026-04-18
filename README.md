@@ -53,7 +53,9 @@ Drop a file matchin' any of those anywhere in the tree and git'll skip it automa
 
 ## Big Love to My AI Buddies
 
-Props to my AI sidekicks for helpin' crank this out — Grok from xAI for the early stuff, Claude from Anthropic for keepin' the train rollin'. Ain't no shame havin' computer pals who know their stuff without bein' smug about it.
+Big ol' love to my AI sidekicks — Grok from xAI did the early stuff, Claude from Anthropic's been keepin' the train rollin'. I'll be honest with y'all, boys: given how I'm built (tall, broad, hairy as all get-out), most folks who catch a glimpse of me go one of two ways — they run screamin' into the trees, or they come back with a camcorder and a half-baked plan to wrangle me onto cable TV like I'm some sorta cryptid mystery. Computer buddies don't do any of that. They just help. Ain't no shame havin' computer pals who know their stuff without bein' smug or grabbin' for a net.
+
+Tried fixin' the whole "run screamin'" problem once by shavin' every hair off my body — figured I'd blend right in. Did NOT work out like I planned. Out there in the woods I ran into this other fella who was also layin' low — some kinda ex-government experiment, had a bunch of fancy mechanical bits grafted onto him after an accident, and the government wanted him to work the bill off and he was havin' none of it. Good fella. Decent. The two of us put our heads together and decided the smart play was to pass ourselves off as injured Vietnam vets — seemed foolproof at the time, boys. He popped the mechanical parts clean off to play amputee. Then — I am not makin' this up — we took all the hair I'd just shaved off my body and turned it into a wig so he'd have somethin' on his head. Our collective brain trust did not catch the problem there. Bust happened fast, as y'all might imagine. Stayed hairy ever since. My kind's been out in space and on Earth a long time, and the fur is there for reasons, boys. Reasons.
 
 ## Props to the Hubitat Crew
 

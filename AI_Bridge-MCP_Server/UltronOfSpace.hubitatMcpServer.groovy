@@ -769,28 +769,21 @@ private fetchHubJson(String path) {
 }
 
 private String fetchHubText(String path) {
-    // Hubitat returns plain-text metrics with Content-Type: text/html. Use
-    // the same pattern that works for JSON, just ignore the parsed body and
-    // grab the raw text via resp.getEntity() or convert the Map back.
-    String hubIp = location?.hubs?.getAt(0)?.localIP ?: "127.0.0.1"
-    String url = "http://${hubIp}${path}"
+    // Internal hub web server listens on 127.0.0.1:8080 — apps cannot reach
+    // the hub's own LAN IP on port 80 (proxy refuses those connections).
+    // Sandbox blocks direct java.io classes so we coerce via toString.
+    String url = "http://127.0.0.1:8080${path}"
     try {
-        String result = null
+        def result = null
         httpGet([uri: url, contentType: "text/plain", timeout: 10]) { resp ->
-            def data = resp.data
-            if (data instanceof String) {
-                result = data
-            } else if (data instanceof Reader) {
-                result = data.text
-            } else if (data instanceof java.io.InputStream) {
-                result = data.getText("UTF-8")
-            } else {
-                result = data?.toString()
-            }
+            result = resp.data
         }
-        return result?.trim()
+        if (result == null) return null
+        String s
+        try { s = result.text } catch (e) { s = result.toString() }
+        return s?.trim()
     } catch (e) {
-        log.warn "fetchHubText(${path}) url=${url} failed: ${e.class.name}: ${e.message}"
+        log.warn "fetchHubText(${path}) failed: ${e.class.name}: ${e.message}"
         return null
     }
 }

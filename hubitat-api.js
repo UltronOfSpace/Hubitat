@@ -330,7 +330,27 @@ const HubitatAPI = {
       if (!evt || !evt.data) return;
       let msg;
       try { msg = JSON.parse(evt.data); } catch (e) { return; }
-      if (!msg || msg.source !== 'DEVICE') return;
+      if (!msg) return;
+
+      // Handle location-level events (mode changes, HSM)
+      if (msg.source === 'LOCATION') {
+        if (msg.name === 'mode') {
+          stateCache.__mode__ = msg.value;
+          // Update active flag in cached modes list
+          if (stateCache.__modes__) {
+            for (let i = 0; i < stateCache.__modes__.length; i++) {
+              stateCache.__modes__[i].active = (stateCache.__modes__[i].name === msg.value);
+            }
+          }
+          render();
+        } else if (msg.name === 'hsmStatus' || msg.name === 'hsmAlert') {
+          stateCache.__hsm__ = msg.value;
+          render();
+        }
+        return;
+      }
+
+      if (msg.source !== 'DEVICE') return;
 
       // Handle brightness animation for dimmable lights
       const id = String(msg.deviceId);
@@ -509,6 +529,68 @@ const HubitatAPI = {
     // Fallback: if it has Switch capability at all, it's a switch
     if (caps.indexOf('Switch') !== -1) return 'switch';
     return 'sensor';
+  },
+
+  // --- Maker API: fetch all modes ---
+  async fetchModes() {
+    const url = this.apiUrl('modes');
+    if (!url) return null;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return resp.json();
+    } catch (e) { return null; }
+  },
+
+  // --- Maker API: set active mode ---
+  async setMode(modeId) {
+    if (!modeId) return;
+    const url = this.apiUrl(`modes/${modeId}`);
+    if (!url) return;
+    try { await fetch(url); } catch (e) { /* network error */ }
+  },
+
+  // --- Maker API: fetch HSM status ---
+  async fetchHSM() {
+    const url = this.apiUrl('hsm');
+    if (!url) return null;
+    try {
+      const resp = await fetch(url);
+      if (!resp.ok) return null;
+      return resp.json();
+    } catch (e) { return null; }
+  },
+
+  // --- Maker API: set HSM status ---
+  async setHSM(command) {
+    if (!command) return;
+    const url = this.apiUrl(`hsm/${command}`);
+    if (!url) return;
+    try { await fetch(url); } catch (e) { /* network error */ }
+  },
+
+  // --- Fetch hub info (direct endpoint, no auth) ---
+  async fetchHubInfo() {
+    if (!this.hubUrl) return null;
+    try {
+      const resp = await fetch(`${this.hubUrl}/hub/details/json`);
+      if (!resp.ok) return null;
+      return resp.json();
+    } catch (e) { return null; }
+  },
+
+  // --- Fetch mode + HSM state and populate stateCache ---
+  async fetchSystemState() {
+    const modes = await this.fetchModes();
+    if (modes && Array.isArray(modes)) {
+      stateCache.__modes__ = modes;
+      const active = modes.find(m => m.active);
+      if (active) stateCache.__mode__ = active.name;
+    }
+    const hsm = await this.fetchHSM();
+    if (hsm && hsm.hsm) {
+      stateCache.__hsm__ = hsm.hsm;
+    }
   },
 
   // --- Test connection ---

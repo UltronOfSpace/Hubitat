@@ -1,0 +1,18 @@
+{
+  "name": "Hubitat Dashboard",
+  "short_name": "Hubitat",
+  "description": "HomeKit-style dashboard for Hubitat Elevation",
+  "start_url": "dashboard-test.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1c1c1e",
+  "theme_color": "#1c1c1e",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%231c1c1e'/%3E%3Cpath d='M256 96L96 224v176a16 16 0 0016 16h96v-96a32 32 0 0132-32h32a32 32 0 0132 32v96h96a16 16 0 0016-16V224z' fill='%23fff' opacity='0.85'/%3E%3C/svg%3E",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

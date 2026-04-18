@@ -138,6 +138,13 @@ const ConfigUI = {
     div.className = 'cfg-section';
 
     div.innerHTML = `
+      <label class="cfg-label">System Tiles</label>
+      <div class="cfg-system-tiles" id="cfgSystemTiles">
+        <button class="cfg-btn cfg-btn-sys" id="cfgAddMode" data-stype="mode">+ Mode Tile</button>
+        <button class="cfg-btn cfg-btn-sys" id="cfgAddHSM" data-stype="hsm">+ HSM Tile</button>
+      </div>
+      <div class="cfg-status" id="cfgSystemStatus"></div>
+      <label class="cfg-label" style="margin-top:16px">Devices</label>
       <div class="cfg-btn-row">
         <button class="cfg-btn" id="cfgDiscoverBtn">Discover Devices</button>
       </div>
@@ -147,6 +154,16 @@ const ConfigUI = {
     `;
 
     setTimeout(() => {
+      // System tile buttons
+      const sysNames = { mode: 'Mode', hsm: 'Security' };
+      const sysBtns = div.querySelectorAll('.cfg-btn-sys');
+      for (let si = 0; si < sysBtns.length; si++) {
+        sysBtns[si].onclick = () => {
+          const stype = sysBtns[si].dataset.stype;
+          this._addSystemTile(stype, sysNames[stype] || stype);
+        };
+      }
+
       const discoverBtn = document.getElementById('cfgDiscoverBtn');
       const searchInput = document.getElementById('cfgDeviceSearch');
 
@@ -175,6 +192,37 @@ const ConfigUI = {
     }, 0);
 
     return div;
+  },
+
+  _addSystemTile(type, name) {
+    const cfg = loadConfig() || getDefaultConfig();
+    if (!cfg.floors) cfg.floors = {};
+    const floorKeys = Object.keys(cfg.floors);
+    if (floorKeys.length === 0) {
+      cfg.floors['floor_1'] = { name: '1st Floor', rooms: { room_1: { name: 'Room 1', entities: [] } } };
+    }
+    const firstFloor = Object.values(cfg.floors)[0];
+    const firstRoom = Object.values(firstFloor.rooms)[0];
+    // Check if system tile already exists anywhere
+    const sysId = '__' + type + '__';
+    let exists = false;
+    Object.values(cfg.floors).forEach(floor => {
+      if (!floor.rooms) return;
+      Object.values(floor.rooms).forEach(room => {
+        if (!room.entities) return;
+        for (let i = 0; i < room.entities.length; i++) {
+          if (room.entities[i].id === sysId) exists = true;
+        }
+      });
+    });
+    const status = document.getElementById('cfgSystemStatus');
+    if (exists) {
+      if (status) { status.textContent = `${name} tile already added.`; status.className = 'cfg-status cfg-err'; }
+      return;
+    }
+    firstRoom.entities.unshift({ id: sysId, name: name, type: type });
+    saveConfig(cfg);
+    if (status) { status.textContent = `Added ${name} tile to ${firstRoom.name}.`; status.className = 'cfg-status cfg-ok'; }
   },
 
   _renderDeviceList(config, filter) {
@@ -503,6 +551,8 @@ const ConfigUI = {
 .cfg-device-added { color: #30d158; font-size: 11px; font-weight: 600; }
 .cfg-configured { opacity: 0.5; }
 .cfg-more { font-size: 11px; color: rgba(255,255,255,0.3); padding: 8px 0; text-align: center; }
+.cfg-system-tiles { display: flex; gap: 8px; margin: 8px 0; }
+.cfg-btn-sys { flex: 1; }
 .cfg-floor { margin-bottom: 16px; }
 .cfg-floor-header {
   display: flex; align-items: center; gap: 8px; padding: 4px 0;

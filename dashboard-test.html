@@ -3,7 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c1c1e">
 <title>Hubitat Dashboard</title>
+<link rel="manifest" href="manifest.json">
 <link rel="stylesheet" href="tiles.css">
 </head>
 <body>
@@ -248,6 +252,8 @@ async function init() {
 
   render();
   await fetchStates();
+  await HubitatAPI.fetchSystemState();
+  render();
   HubitatAPI.connectEventSocket();
 }
 </script>
@@ -264,8 +270,14 @@ async function init() {
 <script src="tiles/cover.js"></script>
 <script src="tiles/door.js"></script>
 <script src="tiles/camera.js"></script>
+<script src="tiles/mode.js"></script>
+<script src="tiles/hsm.js"></script>
 <script src="config-ui.js"></script>
 <script>
+// Register service worker for PWA support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
 // Initialize tile engine (wraps render with autoSizeNames, starts animations)
 initTileEngine();
 init();

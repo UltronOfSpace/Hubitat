@@ -769,17 +769,25 @@ private fetchHubJson(String path) {
 }
 
 private String fetchHubText(String path) {
-    // The hub returns plain text values but with Content-Type: text/html,
-    // so textParser: true is required to avoid Groovy trying to parse HTML.
+    // Hubitat returns plain-text metrics with Content-Type: text/html. Use
+    // the same pattern that works for JSON, just ignore the parsed body and
+    // grab the raw text via resp.getEntity() or convert the Map back.
     String hubIp = location?.hubs?.getAt(0)?.localIP ?: "127.0.0.1"
     String url = "http://${hubIp}${path}"
     try {
         String result = null
-        httpGet([uri: url, textParser: true, timeout: 10]) { resp ->
+        httpGet([uri: url, contentType: "text/plain", timeout: 10]) { resp ->
             def data = resp.data
-            result = (data instanceof Reader) ? data.text : data?.toString()
+            if (data instanceof String) {
+                result = data
+            } else if (data instanceof Reader) {
+                result = data.text
+            } else if (data instanceof java.io.InputStream) {
+                result = data.getText("UTF-8")
+            } else {
+                result = data?.toString()
+            }
         }
-        log.info "fetchHubText(${path}) url=${url} raw=${result}"
         return result?.trim()
     } catch (e) {
         log.warn "fetchHubText(${path}) url=${url} failed: ${e.class.name}: ${e.message}"

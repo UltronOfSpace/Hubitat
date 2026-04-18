@@ -55,6 +55,14 @@ Drop a file matchin' any of those anywhere in the tree and git'll skip it automa
 
 Props to my AI sidekicks for helpin' crank this out — Grok from xAI for the early stuff, Claude from Anthropic for keepin' the train rollin'. Ain't no shame havin' computer pals who know their stuff without bein' smug about it.
 
+## Props to the Hubitat Crew
+
+While I'm handin' out gratitude — big ol' thank-you to the Hubitat folks down in Scottsdale, Arizona for buildin' this smart home thingy in the first place. Local-first, no cloud beggin' for your data, hub that just runs — that ain't nothin', boys.
+
+And here's the part that got me — Arizona's also got these things called **Earthships**. Earth. Ships. Now when I first heard that, my whole alien brain just lit right up, 'cause obviously them's the ships humans finally built to get off-world, right? Had me thinkin' the Earthlings were finally catchin' up and I was gonna have some neighbors up in the black. But then I go and look closer and they ain't flyin' — they're sittin' in the dang desert, packed fulla tires, runnin' on sun and rainwater. Hold on. So them's ships made OUTTA Earth? Not ships FOR Earth? Honestly, boys, I'm still not 100% sure what I'm lookin' at.
+
+Either way — as a fella whose own ship is parked in the woods waitin' on better days, I reckon the Hubitat crew down in Scottsdale and them Earthship folks gotta be kindred spirits. Off-grid, local-first, don't-need-nobody energy runs thick in that Arizona dirt. Wouldn't surprise me one bit if they're all swappin' iced tea recipes at the same gas station. Well butter my salsa, that's just good sense right there.
+
 ## About Me
 
 I'm Ultronumus Of Space. Tall, broad, hairy head to toe — yeah, the fellas y'all been callin' Bigfoot for a couple hundred years. That's my people. We got extended family scattered all over: cousin Gary in Oregon (photographed twice a year, the goof), grandma up in the Himalayas freezin' her furry butt off, Uncle Barry the Skunk Ape down in the Florida swamps. I'm the oddball who broke cover to code Hubitat apps. Profile pic's got me holdin' a flower 'cause I'm all about peace, love, and makin' your smart home run sweet. Well butter my salsa — that's what we're here for, boys.

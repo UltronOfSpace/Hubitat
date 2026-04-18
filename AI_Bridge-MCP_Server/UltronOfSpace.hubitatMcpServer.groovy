@@ -50,19 +50,45 @@ def mainPage() {
         }
 
         if (app.installationState == "COMPLETE" && state.accessToken) {
-            String base = getBaseUrl()
+            String localBase = getBaseUrl()
+            String cloudBase = getCloudBaseUrl()
             String token = state.accessToken
-            String mcpUrl = "${base}/mcp?access_token=${token}"
-            String openApiUrl = "${base}/openapi.json?access_token=${token}"
 
-            section("🔗 Endpoint URLs") {
-                paragraph "<b>Copy these into your AI client of choice.</b> They're permanent — bookmark this page if needed."
-                paragraph buildUrlPanel("MCP endpoint", mcpUrl,
+            String localMcpUrl = "${localBase}/mcp?access_token=${token}"
+            String localOpenApiUrl = "${localBase}/openapi.json?access_token=${token}"
+            String cloudMcpUrl = cloudBase ? "${cloudBase}/mcp?access_token=${token}" : null
+            String cloudOpenApiUrl = cloudBase ? "${cloudBase}/openapi.json?access_token=${token}" : null
+
+            section("🏠 Local URLs (same Wi-Fi as hub)") {
+                paragraph "Use these from a computer or phone <b>on your home network</b>. Fastest, stays on your LAN, works offline."
+                paragraph buildUrlPanel("Local MCP endpoint", localMcpUrl,
                     "For Claude Desktop, Cursor, and other MCP-native clients.")
-                paragraph buildUrlPanel("OpenAPI spec", openApiUrl,
-                    "For ChatGPT Custom GPTs, Grok Actions, Gemini Extensions.")
-                paragraph buildUrlPanel("Access token (alone)", token,
-                    "Only needed if an AI client asks for the token separately.")
+                paragraph buildUrlPanel("Local OpenAPI spec", localOpenApiUrl,
+                    "For ChatGPT Custom GPTs on the same Wi-Fi as your hub.")
+            }
+
+            if (cloudBase) {
+                section("☁️ Cloud URLs (anywhere on the internet)") {
+                    paragraph "Use these for <b>AI apps that live in the cloud</b> — ChatGPT iPhone app, Grok, Gemini, or Claude Desktop when you're away from home. Hubitat's cloud relay is <b>free</b> and already included with your hub."
+                    paragraph buildUrlPanel("Cloud MCP endpoint", cloudMcpUrl,
+                        "Remote access via Hubitat's built-in cloud relay.")
+                    paragraph buildUrlPanel("Cloud OpenAPI spec", cloudOpenApiUrl,
+                        "Paste this into ChatGPT Custom GPT Actions to control your hub from anywhere.")
+                }
+            } else {
+                section("☁️ Cloud access (not available)") {
+                    paragraph """
+<div style='background:#fdf2f2;border-left:4px solid #e74c3c;padding:10px;border-radius:4px'>
+<b>Your hub is not registered with Hubitat's cloud.</b><br>
+Cloud URLs are required for AI apps that live on the internet (ChatGPT iPhone app, Grok, Gemini).
+To enable: go to <b>Settings → Hub Details → Register Hub</b>. It's free. Then come back and reload this page.
+</div>
+""".toString()
+                }
+            }
+
+            section("Access token (if an AI client asks separately)") {
+                paragraph buildUrlPanel("Token", token, null)
             }
 
             section("🤖 Claude Desktop setup") {
@@ -75,7 +101,7 @@ def mainPage() {
   "mcpServers": {
     "hubitat": {
       "command": "npx",
-      "args": ["mcp-remote", "${mcpUrl}"]
+      "args": ["mcp-remote", "${cloudMcpUrl ?: localMcpUrl}"]
     }
   }
 }</pre>
@@ -83,28 +109,30 @@ def mainPage() {
   <li>Restart Claude Desktop</li>
   <li>Try: <i>"What devices do I have?"</i> or <i>"Turn on the kitchen light."</i></li>
 </ol>
+<small style='color:#666'>Tip: use the <b>cloud URL</b> if you use Claude Desktop from multiple locations. Use the <b>local URL</b> if you only connect from home.</small>
 """.toString()
             }
 
-            section("💬 ChatGPT Custom GPT setup") {
+            section("💬 ChatGPT Custom GPT setup (iPhone / Android / web)") {
                 paragraph """
 <ol style='line-height:1.7'>
   <li>In ChatGPT, go to <b>Explore GPTs</b> → <b>Create a GPT</b></li>
   <li>Click <b>Configure</b> → <b>Actions</b> → <b>Create new action</b></li>
-  <li>Click <b>Import from URL</b> and paste the <b>OpenAPI spec</b> URL above</li>
+  <li>Click <b>Import from URL</b> and paste the <b>${cloudBase ? 'Cloud OpenAPI spec' : 'Local OpenAPI spec'}</b> URL above</li>
   <li>Under <b>Authentication</b>, choose <b>API Key</b>:
     <ul>
       <li>Auth Type: <b>Custom</b></li>
       <li>Custom Header Name: leave blank (token is in the URL)</li>
     </ul>
   </li>
-  <li>Save the GPT. The integration persists across every conversation.</li>
+  <li>Save the GPT. The integration persists across every conversation — on web, desktop, and the mobile app.</li>
 </ol>
+${cloudBase ? "" : "<div style='color:#c0392b;font-size:13px'><b>Note:</b> without cloud access, this only works when ChatGPT can reach your hub (e.g. same Wi-Fi, or via a tunnel service).</div>"}
 """.toString()
             }
 
             section("🔎 Grok / Gemini / other AI clients") {
-                paragraph "Use the client's custom action / tool / extension feature. Paste the OpenAPI URL. Done."
+                paragraph "Use the client's custom action / tool / extension feature. Paste the ${cloudBase ? 'Cloud' : 'Local'} OpenAPI URL. Done."
             }
         }
 
@@ -156,6 +184,20 @@ Once enabled, it stays enabled — you'll never see this page again.
 
 private String getBaseUrl() {
     return "${getFullLocalApiServerUrl()}"
+}
+
+private String getCloudBaseUrl() {
+    try {
+        String url = getFullApiServerUrl()
+        // getFullApiServerUrl returns a cloud URL (cloud.hubitat.com) when the
+        // hub is registered. On unregistered hubs it may return null, an
+        // empty string, or the local URL.
+        if (!url) return null
+        if (url.contains("cloud.hubitat.com")) return url
+        return null
+    } catch (e) {
+        return null
+    }
 }
 
 private String buildUrlPanel(String label, String value, String subtitle = null) {

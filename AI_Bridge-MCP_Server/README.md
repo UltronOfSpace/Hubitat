@@ -32,10 +32,16 @@ Both are served over your hub's local network (and optionally the Hubitat cloud 
 ## Configure
 
 1. Pick the devices the AI should see and control (same pattern as Maker API).
-2. Save. The app page will show **three things to copy**:
-   - **MCP endpoint URL** (for Claude Desktop, Cursor)
-   - **OpenAPI URL** (for ChatGPT, Grok, Gemini)
-   - **Access token**
+2. Save. The app page will show two sets of URLs:
+   - **🏠 Local URLs** — use from the same Wi-Fi as your hub (computer, phone on home network)
+   - **☁️ Cloud URLs** — use from cloud-based AI apps (ChatGPT iPhone, Grok, Gemini). These go through Hubitat's **free** cloud relay.
+3. Plus the access token (only needed if your client asks for it separately).
+
+### Do I need a subscription?
+
+**No.** The cloud relay URLs (`https://cloud.hubitat.com/api/...`) are free and built into every registered Hubitat hub. This is the same mechanism Maker API uses. You **don't need** Hub Protect ($30/year) — that covers cloud backups, which are separate.
+
+If your hub isn't registered yet: **Settings → Hub Details → Register Hub** (free, one-time).
 
 ---
 

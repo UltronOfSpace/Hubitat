@@ -769,13 +769,16 @@ private fetchHubJson(String path) {
 }
 
 private String fetchHubText(String path) {
+    // The hub returns plain text values but with Content-Type: text/html,
+    // so textParser: true is required to avoid Groovy trying to parse HTML.
     try {
         String result = null
-        httpGet([uri: "http://127.0.0.1:8080${path}", contentType: "text/plain", timeout: 10]) { resp ->
-            result = resp.data?.toString()
+        httpGet([uri: "http://127.0.0.1:8080${path}", textParser: true, timeout: 10]) { resp ->
+            result = resp.data?.text
         }
-        return result
+        return result?.trim()
     } catch (e) {
+        log.warn "fetchHubText(${path}) failed: ${e.message}"
         return null
     }
 }

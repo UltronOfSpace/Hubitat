@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1c1c1e">
+<title>Hubitat Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="tiles.css">
+</head>
+<body>
+
+<div class="sidebar">
+  <button class="home-btn" id="homeBtn" onclick="goHome()" title="Go to home room"><svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 2.1L1 12h3v9a1 1 0 0 0 1 1h5v-6a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6h5a1 1 0 0 0 1-1v-9h3L12 2.1z" fill="rgba(255,255,255,0.85)"/></svg></button>
+  <div class="floor-tabs" id="floorTabs"></div>
+  <button class="settings-btn" onclick="openSettings()" title="Settings"><svg viewBox="0 0 24 24" style="width:20px;height:20px" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+</div>
+<div class="main">
+  <div class="room-bar" id="roomBar"></div>
+  <div class="tile-grid" id="tileGrid"></div>
+</div>
+
+<script>
+// --- Dashboard globals ---
+const FADE_MS = 200; // transition duration for floor/room tab switches
+const RESIZE_DEBOUNCE_MS = 80;
+const stateCache = {};
+const dimLocks = {};
+let data = {};
+
+// --- Config persistence (localStorage) ---
+const CONFIG_KEY = 'hubitat-dashboard-config';
+
+function loadConfig() {
+  const raw = localStorage.getItem(CONFIG_KEY);
+  if (!raw) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+function saveConfig(config) {
+  if (!config) return;
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+function getDefaultConfig() {
+  return {
+    version: 1,
+    hub: { url: '', appId: '', token: '' },
+    floors: {},
+    homeRoom: '',
+    floorNames: {}
+  };
+}
+
+// Build the `data` object from config.floors (same shape the rest of the dashboard expects)
+function buildDataFromConfig(config) {
+  if (!config || !config.floors) return {};
+  return config.floors;
+}
+
+// --- Hubitat bulk fetch (delegates to HubitatAPI) ---
+async function fetchStates() {
+  if (!HubitatAPI.hubUrl) return;
+  await HubitatAPI.fetchStates(data);
+}
+
+// --- Navigation state ---
+let dashConfig = null;
+let homeRoom = '';
+let homeFloor = '';
+let activeFloor = '';
+let activeRooms = {};
+
+// Home room from URL param or config
+const params = new URLSearchParams(location.search);
+
+function findFloorForRoom(roomId) {
+  if (!roomId || !data) return Object.keys(data)[0] || '';
+  for (const [floorId, floor] of Object.entries(data)) {
+    if (floor.rooms && floor.rooms[roomId]) return floorId;
+  }
+  return Object.keys(data)[0] || '';
+}
+
+function goHome() {
+  if (!homeFloor || !data[homeFloor]) return;
+  activeFloor = homeFloor;
+  activeRooms[homeFloor] = homeRoom;
+  render();
+}
+
+function selectFloor(id) {
+  if (id === activeFloor) return;
+  if (!data[id]) return;
+  const grid = document.getElementById('tileGrid');
+  if (!grid) return;
+  grid.classList.add('fading');
+  setTimeout(() => { activeFloor = id; render(); grid.classList.remove('fading'); }, FADE_MS);
+}
+
+function selectRoom(id) {
+  if (id === activeRooms[activeFloor]) return;
+  if (!data[activeFloor] || !data[activeFloor].rooms[id]) return;
+  const grid = document.getElementById('tileGrid');
+  if (!grid) return;
+  grid.classList.add('fading');
+  setTimeout(() => { activeRooms[activeFloor] = id; render(); grid.classList.remove('fading'); }, FADE_MS);
+}
+
+let _lastFloor = null, _lastRoom = null, _lastLive = null;
+
+function renderTabs(rooms, roomIds, activeRoom, isLive) {
+  if (!rooms || !roomIds) return;
+  const tabsChanged = _lastFloor !== activeFloor || _lastRoom !== activeRoom || _lastLive !== isLive;
+  if (!tabsChanged) return;
+  _lastFloor = activeFloor; _lastRoom = activeRoom; _lastLive = isLive;
+
+  const cfgFloorNames = (dashConfig && dashConfig.floorNames) || {};
+  document.getElementById('floorTabs').innerHTML = Object.entries(data).map(([id, floor]) =>
+    `<button class="floor-tab ${id === activeFloor ? 'active' : ''}" onclick="selectFloor('${id}')">
+      ${cfgFloorNames[id] || floor.name}
+    </button>`
+  ).join('');
+
+  const homeBtn = document.getElementById('homeBtn');
+  if (!homeBtn) return;
+  homeBtn.innerHTML = '<svg viewBox="0 0 24 24" style="width:22px;height:22px"><path d="M12 2.1L1 12h3v9a1 1 0 0 0 1 1h5v-6a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v6h5a1 1 0 0 0 1-1v-9h3L12 2.1z" fill="rgba(255,255,255,0.85)"/></svg>';
+  homeBtn.className = 'home-btn ' + (isLive ? 'live' : 'offline');
+  document.getElementById('roomBar').innerHTML = roomIds.map(id =>
+    `<button class="room-tab ${id === activeRoom ? 'active' : ''}" onclick="selectRoom('${id}')">${rooms[id].name}</button>`
+  ).join('');
+}
+
+// Position media tiles from bottom-right, compute spacers, and build positioned HTML
+function positionMediaTiles(media, nonMedia, cols, rows) {
+  const mediaPositions = [];
+  let mCol = cols;
+  let mRow = rows;
+  for (let i = media.length - 1; i >= 0; i--) {
+    if (mCol - 2 < 0) { mRow--; mCol = cols; }
+    mCol -= 2;
+    mediaPositions[i] = { row: mRow, col: mCol + 1 }; /* 1-indexed for CSS */
+  }
+
+  const totalCells = cols * rows;
+  const spacerCount = Math.max(0, totalCells - nonMedia.length - media.length * 2);
+  const spacerHtml = Array(spacerCount).fill('<div class="tile-spacer"></div>').join('');
+
+  let html = spacerHtml;
+  for (let i = 0; i < media.length; i++) {
+    const pos = mediaPositions[i];
+    const tile = renderTile(media[i]);
+    html += tile.replace('<div class="tile ', `<div style="grid-row:${pos.row};grid-column:${pos.col}/span 2" class="tile `);
+  }
+  return html;
+}
+
+function renderGrid(rooms, activeRoom) {
+  if (!rooms || !activeRoom) return;
+  const grid = document.getElementById('tileGrid');
+  if (!grid) return;
+  const room = rooms[activeRoom];
+  if (!room || room.entities.length === 0) {
+    grid.innerHTML = '<div class="empty-msg">No Accessories</div>';
+    grid.style.gridTemplateColumns = '1fr';
+    grid.style.gridTemplateRows = '1fr';
+    return;
+  }
+
+  const entities = [...room.entities].sort((a, b) => tilePriority(a) - tilePriority(b));
+  const nonMedia = entities.filter(e => e.type !== 'media');
+  const media = entities.filter(e => e.type === 'media').sort((a, b) => tilePriority(a) - tilePriority(b));
+  const cellCount = nonMedia.length + media.length * 2;
+  const rect = grid.getBoundingClientRect();
+  const { cols } = calcGrid(cellCount, rect.width - 24, rect.height - 24);
+
+  /* ── Calculate actual rows accounting for span-2 wrapping ── */
+  let col = 0;
+  let rows = 1;
+  for (let i = 0; i < nonMedia.length; i++) {
+    if (col >= cols) { col = 0; rows++; }
+    col++;
+  }
+  for (let i = 0; i < media.length; i++) {
+    if (col + 2 > cols) { col = 0; rows++; }
+    col += 2;
+  }
+
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+
+  let html = nonMedia.map(e => renderTile(e)).join('');
+  html += positionMediaTiles(media, nonMedia, cols, rows);
+  grid.innerHTML = html;
+}
+
+function render() {
+  if (TileEngine.sliderAnimating) return;
+  if (!data[activeFloor]) return;
+  const rooms = data[activeFloor].rooms;
+  const roomIds = Object.keys(rooms);
+  if (!activeRooms[activeFloor] || !rooms[activeRooms[activeFloor]]) {
+    activeRooms[activeFloor] = roomIds[0];
+  }
+  const activeRoom = activeRooms[activeFloor];
+  const isLive = !!stateCache._live;
+
+  renderTabs(rooms, roomIds, activeRoom, isLive);
+  renderGrid(rooms, activeRoom);
+}
+
+let _resizeTimer = 0;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(render, RESIZE_DEBOUNCE_MS);
+});
+
+async function init() {
+  // Load config from localStorage (or URL params for hub connection)
+  dashConfig = loadConfig();
+
+  // Allow URL params to override hub connection (for easy setup)
+  const urlHub = params.get('hub');
+  const urlAppId = params.get('appId');
+  const urlToken = params.get('token');
+  if (urlHub && urlAppId && urlToken) {
+    if (!dashConfig) dashConfig = getDefaultConfig();
+    dashConfig.hub = { url: urlHub, appId: urlAppId, token: urlToken };
+    saveConfig(dashConfig);
+  }
+
+  if (!dashConfig || !dashConfig.hub || !dashConfig.hub.url) {
+    // No config yet — show setup prompt
+    document.getElementById('tileGrid').innerHTML =
+      '<div class="empty-msg">No hub configured. Open settings (gear icon) to connect your Hubitat hub.</div>';
+    return;
+  }
+
+  // Build data from config
+  data = buildDataFromConfig(dashConfig);
+
+  // Set up navigation
+  homeRoom = params.get('room') || dashConfig.homeRoom || Object.keys(Object.values(data)[0]?.rooms || {})[0] || '';
+  homeFloor = findFloorForRoom(homeRoom);
+  activeFloor = homeFloor;
+  activeRooms = { [homeFloor]: homeRoom };
+
+  // Initialize Hubitat API
+  HubitatAPI.init(dashConfig.hub.url, dashConfig.hub.appId, dashConfig.hub.token, data);
+
+  render();
+  await fetchStates();
+  await HubitatAPI.fetchSystemState();
+  render();
+  HubitatAPI.connectEventSocket();
+}
+</script>
+<script src="hubitat-api.js"></script>
+<script src="tile-engine.js"></script>
+<script src="tiles/light.js"></script>
+<script src="tiles/switch.js"></script>
+<script src="tiles/fan.js"></script>
+<script src="tiles/media.js"></script>
+<script src="tiles/sensor.js"></script>
+<script src="tiles/climate.js"></script>
+<script src="tiles/temp-humidity.js"></script>
+<script src="tiles/ups.js"></script>
+<script src="tiles/cover.js"></script>
+<script src="tiles/door.js"></script>
+<script src="tiles/camera.js"></script>
+<script src="tiles/mode.js"></script>
+<script src="tiles/hsm.js"></script>
+<script src="config-ui.js"></script>
+<script>
+// Register service worker for PWA support
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+// Initialize tile engine (wraps render with autoSizeNames, starts animations)
+initTileEngine();
+init();
+</script>
+</body>
+</html>

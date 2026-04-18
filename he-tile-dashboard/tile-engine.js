@@ -1,0 +1,703 @@
+// tile-engine.js — Core tile rendering engine with plugin registry
+// Expects globals from dashboard: stateCache, dimLocks, render(), fetchStates()
+// Expects HubitatAPI from hubitat-api.js for Hubitat Maker API calls
+// Tile plugins call callService(domain, service, data) — translated here to HubitatAPI
+
+// Shared helper: shrink font until each word fits within maxW
+function fitWordsToWidth(el, words, maxW, startSize, minSize) {
+  if (!el || !words || !maxW) return startSize;
+  let size = startSize;
+  const span = document.createElement('span');
+  span.style.cssText = `font-weight:600;white-space:nowrap;visibility:hidden;position:absolute;`;
+  document.body.appendChild(span);
+  let tries = 0, fits = false;
+  while (!fits && size > minSize && tries < 20) {
+    span.style.fontSize = size + 'px';
+    fits = true;
+    for (const w of words) { span.textContent = w; if (span.offsetWidth > maxW + 1) { fits = false; break; } }
+    if (!fits) { size -= 0.5; el.style.fontSize = size + 'px'; }
+    tries++;
+  }
+  span.remove();
+  return size;
+}
+
+// Shared helper: apply tile dim styling based on brightness percentage
+function applyDimStyle(tile, pct) {
+  if (!tile) return;
+  const o = pct;
+  if (o > 0) {
+    const mix = (off, on) => Math.round(off + (on - off) * o);
+    tile.style.background = `linear-gradient(145deg, rgb(${mix(46,255)},${mix(46,255)},${mix(48,255)}) 0%, rgb(${mix(35,245)},${mix(35,245)},${mix(37,245)}) 30%, rgb(${mix(28,235)},${mix(28,235)},${mix(30,235)}) 70%, rgb(${mix(19,224)},${mix(19,224)},${mix(21,224)}) 100%)`;
+    const bt = 0.08 + (0.9 - 0.08) * o * o;
+    const bl = 0.05 + (0.6 - 0.05) * o * o;
+    const sh = 0.6 - 0.25 * o;
+    tile.style.borderTop = `1px solid rgba(255,255,255,${bt.toFixed(2)})`;
+    tile.style.borderLeft = `1px solid rgba(255,255,255,${bl.toFixed(2)})`;
+    tile.style.boxShadow = `var(--neu-drop-lg) rgba(0,0,0,${sh.toFixed(2)}),var(--neu-lift-lg) rgba(255,255,255,${(o*0.08).toFixed(3)}),var(--neu-inset-lg) rgba(255,255,255,${o})`;
+  } else {
+    tile.style.background = '';
+    tile.style.borderTop = '';
+    tile.style.borderLeft = '';
+    tile.style.boxShadow = '';
+  }
+}
+
+const TileEngine = {
+  // --- Defaults (single source of truth) ---
+  defaults: {
+    transitionSec: 1,       // fallback dim/fade transition when device doesn't report one
+    dimLockMs: 10000,        // how long to ignore WebSocket updates after local interaction
+  },
+
+  registry: {},
+  toggleHandlers: {},
+  _injectedCSS: new Set(),
+
+  // --- Plugin Registry ---
+  register(type, def) {
+    if (!type || !def) return;
+    this.registry[type] = def;
+    if (def.css && !this._injectedCSS.has(type)) {
+      const style = document.createElement('style');
+      style.textContent = def.css;
+      document.head.appendChild(style);
+      this._injectedCSS.add(type);
+    }
+    if (def.toggle) {
+      this.toggleHandlers[type] = def.toggle;
+    }
+  },
+
+  // --- State Accessors ---
+  state(id) {
+    if (!id) return 'unknown';
+    return stateCache[id] || 'unknown';
+  },
+  attr(id, suffix) { if (!id || !suffix) return undefined; return stateCache[id + '_' + suffix]; },
+  setState(id, val) { if (!id) return; stateCache[id] = val; },
+  setAttr(id, suffix, val) { if (!id || !suffix) return; stateCache[id + '_' + suffix] = val; },
+  lock(id) { if (!id) return; dimLocks[id] = Date.now(); },
+  isLocked(id) { return dimLocks[id] && (Date.now() - dimLocks[id] < this.defaults.dimLockMs); },
+
+  // --- Hubitat Maker API ---
+  // Tile plugins call callService(deviceId, command [, param]) with Hubitat commands directly.
+  async callService(deviceId, command, param) {
+    if (!deviceId || !command) return;
+    return HubitatAPI.sendCommand(deviceId, command, param);
+  },
+
+  // Returns raw Hubitat device object (used by fan.js toggle to read speed after turn-on)
+  async getDeviceState(deviceId) {
+    if (!deviceId) return null;
+    return HubitatAPI.getDevice(deviceId);
+  },
+
+  // --- Rendering Helpers ---
+  baseClass(entity) {
+    if (!entity || !entity.id) return '';
+    const s = stateCache[entity.id] || '';
+    const unavail = s === 'unavailable';
+    const def = this.registry[entity.type];
+    const alert = def && def.isAlert ? def.isAlert(entity) : false;
+    const sensor = def ? !!def.isSensor : false;
+    const on = def && def.isOn ? def.isOn(entity) : false;
+
+    let cls = `type-${entity.type}`;
+    if (unavail) cls += ' state-unavailable';
+    else if (alert) cls += ' state-alert';
+    else if (sensor) cls += ' state-sensor';
+    else if (on) cls += ' state-on';
+    return cls;
+  },
+
+  offlineHtml(entity) {
+    if ((stateCache[entity.id] || '') !== 'unavailable') return '';
+    const svg = `<svg viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.56 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>`;
+    return `<div class="tile-offline">${svg}<span>Offline</span></div>`;
+  },
+
+  iconColor(entity) {
+    if (!entity) return 'rgba(255,255,255,0.6)';
+    const def = this.registry[entity.type];
+    const on = def && def.isOn ? def.isOn(entity) : false;
+    const sensor = def ? !!def.isSensor : false;
+    const alert = def && def.isAlert ? def.isAlert(entity) : false;
+    if (on && !sensor && !alert) return '#1c1c1e';
+    if (alert) return 'rgba(0,0,0,0.7)';
+    return 'rgba(255,255,255,0.6)';
+  },
+
+  // Standard tile template — used by simple tile types
+  renderStandard(entity, opts = {}) {
+    if (!entity) return '';
+    const cls = this.baseClass(entity);
+    const offline = this.offlineHtml(entity);
+    const ic = opts.iconColor || this.iconColor(entity);
+    const icon = opts.icon || '';
+    const sliderCls = opts.sliderHtml ? ' has-slider' : '';
+    const artCls = opts.artHtml ? ' has-art' : '';
+
+    return `<div class="tile ${cls}${opts.extraCls || ''}${sliderCls}${artCls}"${opts.dimStyle || ''}${opts.onclick || ''}${opts.extraAttrs || ''}>
+      ${opts.artHtml || ''}${offline}${opts.sliderHtml || ''}
+      <div class="tile-icon-bg">${icon}</div>
+      <div class="tile-icon-circle" style="color:${ic}">${icon}</div>
+      <div class="tile-bottom tile-bottom-media">
+        <div class="tile-media-left">
+          <div class="tile-name"${opts.nameStyle || ''}>${entity.name}</div>
+          <div class="tile-state"${opts.stateStyle || ''}>${opts.state || ''}</div>
+          ${opts.mediaInfoHtml || ''}
+        </div>
+        ${opts.transportHtml || ''}
+      </div>
+      ${opts.progressHtml || ''}
+    </div>`;
+  },
+
+  // --- Main Render Dispatch ---
+  renderTile(entity) {
+    if (!entity || !entity.type) return '';
+    const def = this.registry[entity.type];
+    if (!def) {
+      return `<div class="tile type-${entity.type}"><div class="tile-bottom">
+        <div class="tile-name">${entity.name}</div>
+        <div class="tile-state">Unknown: ${entity.type}</div></div></div>`;
+    }
+    return def.render(entity);
+  },
+
+  formatState(entity) {
+    if (!entity) return 'unknown';
+    const def = this.registry[entity.type];
+    if (def && def.formatState) return def.formatState(entity);
+    const s = stateCache[entity.id] || 'unknown';
+    if (s === 'unavailable') return 'No Response';
+    return s === 'on' ? 'On' : s === 'off' ? 'Off' : s.charAt(0).toUpperCase() + s.slice(1);
+  },
+
+  isOn(entity) {
+    if (!entity) return false;
+    const def = this.registry[entity.type];
+    return def && def.isOn ? def.isOn(entity) : false;
+  },
+
+  isSensor(entity) {
+    if (!entity) return false;
+    const def = this.registry[entity.type];
+    return def ? !!def.isSensor : false;
+  },
+
+  isAlert(entity) {
+    if (!entity) return false;
+    const def = this.registry[entity.type];
+    return def && def.isAlert ? def.isAlert(entity) : false;
+  },
+
+  tilePriority(entity) {
+    if (!entity) return 200;
+    const def = this.registry[entity.type];
+    return def && def.priority ? def.priority(entity) : 200;
+  },
+
+  // --- Grid ---
+  calcGrid(count, containerW, containerH) {
+    if (count < 0) count = 0;
+    if (count === 0) return { cols: 1, rows: 1 };
+    let bestCols = 1, bestSize = 0;
+    const MAX_COLS = 8;
+    const GRID_GAP = 10; // px between grid cells
+    for (let cols = 1; cols <= Math.min(count, MAX_COLS); cols++) {
+      const rows = Math.ceil(count / cols);
+      const cellW = (containerW - (cols - 1) * GRID_GAP) / cols;
+      const cellH = (containerH - (rows - 1) * GRID_GAP) / rows;
+      const size = Math.min(cellW, cellH);
+      if (size > bestSize) { bestSize = size; bestCols = cols; }
+    }
+    return { cols: bestCols, rows: Math.ceil(count / bestCols) };
+  },
+
+  // --- Slider Infrastructure ---
+  sliderActiveUntil: 0,
+  sliderAnimating: false,
+  _dimDebounce: null,
+  _volDebounce: null,
+
+  setBrightness(entityId, value) {
+    if (!entityId) return;
+    value = Math.max(0, Math.min(MAX_BRIGHTNESS, value));
+    stateCache[entityId + '_brightness'] = value;
+    stateCache[entityId + '_percentage'] = Math.round((value / MAX_BRIGHTNESS) * 100);
+    if (value === 0) stateCache[entityId] = 'off';
+    else if (stateCache[entityId] === 'off') stateCache[entityId] = 'on';
+    dimLocks[entityId] = Date.now();
+
+    clearTimeout(this._dimDebounce);
+    this._dimDebounce = setTimeout(() => {
+      const type = HubitatAPI.deviceTypeMap[entityId];
+      const level = HubitatAPI.brightnessToLevel(value);
+      if (type === 'fan') {
+        if (level === 0) HubitatAPI.sendCommand(entityId, 'off');
+        else HubitatAPI.sendCommand(entityId, 'setSpeed', HubitatAPI.percentToSpeed(level));
+      } else {
+        if (level === 0) HubitatAPI.sendCommand(entityId, 'off');
+        else HubitatAPI.sendCommand(entityId, 'setLevel', level);
+      }
+    }, 300);
+  },
+
+  _volDebounces: {},
+  setVolume(entityId, value, sendNow) {
+    if (!entityId) return;
+    value = Math.max(0, Math.min(MAX_BRIGHTNESS, value));
+    const vol = value / MAX_BRIGHTNESS;
+    // Direct stateCache write — inside TileEngine method
+    stateCache[entityId + '_volume'] = vol;
+    dimLocks[entityId] = Date.now();
+
+    const hubitatVol = Math.round(vol * 100);
+    if (sendNow) {
+      clearTimeout(this._volDebounces[entityId]);
+      HubitatAPI.sendCommand(entityId, 'setVolume', hubitatVol);
+    } else {
+      clearTimeout(this._volDebounces[entityId]);
+      this._volDebounces[entityId] = setTimeout(() => {
+        HubitatAPI.sendCommand(entityId, 'setVolume', hubitatVol);
+        delete this._volDebounces[entityId];
+      }, 300);
+    }
+  },
+
+  // Extracted: animate slider on click-without-drag
+  animateSliderClick(track, fill, entityId, isVolume, tile, currentPct, targetPct, duration) {
+    if (!track || !fill || !entityId) return;
+    if (typeof currentPct !== 'number' || typeof targetPct !== 'number') return;
+    if (duration <= 0) duration = 200;
+    TileEngine.sliderAnimating = true;
+    const MIN_STEPS = 10;
+    const STEP_INTERVAL_MS = 20; // ms per animation frame
+    const steps = Math.max(MIN_STEPS, Math.round(duration / STEP_INTERVAL_MS));
+    if (isVolume) {
+      const volSteps = 5;
+      for (let i = 1; i <= volSteps; i++) {
+        setTimeout(() => {
+          const t = i / volSteps;
+          const pct = currentPct + (targetPct - currentPct) * t;
+          TileEngine.setVolume(entityId, Math.round(pct * MAX_BRIGHTNESS), true);
+        }, (duration / volSteps) * i);
+      }
+    }
+    // Pre-scheduled animation: all steps computed upfront
+    const interval = duration / steps;
+    for (let i = 1; i <= steps; i++) {
+      setTimeout(() => {
+        const t = i / steps;
+        const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+        const pct = currentPct + (targetPct - currentPct) * ease;
+        const val = Math.round(pct * MAX_BRIGHTNESS);
+        fill.style.height = (pct * 100) + '%';
+        if (isVolume) {
+          // Direct stateCache write — inside TileEngine method
+          stateCache[entityId + '_volume'] = pct;
+          dimLocks[entityId] = Date.now();
+        } else {
+          TileEngine.setBrightness(entityId, val);
+          applyDimStyle(tile, pct);
+        }
+        if (i >= steps) { TileEngine.sliderAnimating = false; void fetchStates(); }
+      }, interval * i);
+    }
+  },
+
+  // Extracted: compute slider value from clientY and apply changes
+  _sliderUpdate(track, fill, entityId, isVolume, tile, clientY) {
+    if (!track || !fill) return;
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (rect.bottom - clientY) / rect.height));
+    const val = Math.round(pct * MAX_BRIGHTNESS);
+    fill.style.height = (pct * 100) + '%';
+    if (isVolume) { TileEngine.setVolume(entityId, val); }
+    else { TileEngine.setBrightness(entityId, val); applyDimStyle(tile, pct); }
+  },
+
+  startDim(e) {
+    if (!e) return;
+    if (e.button && e.button !== 0) return;
+    e.preventDefault(); e.stopPropagation();
+    TileEngine.sliderActiveUntil = Date.now() + 60000;
+    const track = e.currentTarget;
+    const entityId = track.dataset.entity;
+    const fill = track.querySelector('.tile-slider-fill');
+    if (!entityId || !fill) return;
+    const isVolume = track.dataset.sliderType === 'volume';
+    const tile = track.closest('.tile');
+    let dragged = false;
+
+    function onMove(ev) {
+      ev.preventDefault();
+      dragged = true;
+      const y = ev.touches ? ev.touches[0].clientY : ev.clientY;
+      TileEngine._sliderUpdate(track, fill, entityId, isVolume, tile, y);
+    }
+    function onUp(ev) {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onUp);
+      document.removeEventListener('touchcancel', onUp);
+      TileEngine.sliderActiveUntil = Date.now() + 500;
+
+      if (!dragged) {
+        const y = ev.changedTouches ? ev.changedTouches[0].clientY : ev.clientY;
+        const rect = track.getBoundingClientRect();
+        const targetPct = Math.max(0, Math.min(1, (rect.bottom - y) / rect.height));
+        const currentPct = parseFloat(fill.style.height) / 100 || 0;
+        const duration = TileEngine.defaults.transitionSec * 1000;
+        TileEngine.animateSliderClick(track, fill, entityId, isVolume, tile, currentPct, targetPct, duration);
+      } else {
+        setTimeout(fetchStates, 1000);
+      }
+    }
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+    document.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('touchend', onUp);
+    document.addEventListener('touchcancel', onUp);
+  },
+
+  // --- Brightness Animation ---
+  dimAnimations: {},
+
+  animateBrightness(entityId, from, to, durationMs, finalState) {
+    if (!entityId) return;
+    if (durationMs <= 0) durationMs = 200;
+    this.dimAnimations[entityId] = {
+      from, to,
+      startTime: performance.now(),
+      duration: durationMs,
+      finalState: finalState || null
+    };
+  },
+
+  cancelAnimation(entityId) {
+    delete this.dimAnimations[entityId];
+  },
+
+  dimAnimLoop() {
+    if (!TileEngine.dimAnimations) { requestAnimationFrame(TileEngine.dimAnimLoop); return; }
+    const now = performance.now();
+    for (const [entityId, anim] of Object.entries(TileEngine.dimAnimations)) {
+      const elapsed = now - anim.startTime;
+      const progress = Math.min(1, elapsed / anim.duration);
+      const current = Math.round(anim.from + (anim.to - anim.from) * progress);
+      stateCache[entityId + '_brightness'] = current;
+
+      if (progress >= 1) {
+        if (anim.finalState) stateCache[entityId] = anim.finalState;
+        delete TileEngine.dimAnimations[entityId];
+        TileEngine.dimAnimUpdateTile(entityId, anim.to);
+        setTimeout(() => render(), 50);
+      } else {
+        TileEngine.dimAnimUpdateTile(entityId, current);
+      }
+    }
+    requestAnimationFrame(TileEngine.dimAnimLoop);
+  },
+
+  dimAnimUpdateTile(entityId, brightness) {
+    if (!entityId) return;
+    const track = document.querySelector(`[data-entity="${entityId}"][data-slider-type="brightness"]`);
+    if (!track) return;
+    const tile = track.closest('.tile');
+    if (!tile) return;
+    const fill = track.querySelector('.tile-slider-fill');
+    const bPct = Math.round((brightness / MAX_BRIGHTNESS) * 100);
+    const o = bPct / 100;
+
+    if (fill) fill.style.height = bPct + '%';
+
+    track.style.background = '';
+
+    const mix = (off, on) => Math.round(off + (on - off) * o);
+    tile.style.background = `linear-gradient(145deg, rgb(${mix(46,255)},${mix(46,255)},${mix(48,255)}) 0%, rgb(${mix(35,245)},${mix(35,245)},${mix(37,245)}) 30%, rgb(${mix(28,235)},${mix(28,235)},${mix(30,235)}) 70%, rgb(${mix(19,224)},${mix(19,224)},${mix(21,224)}) 100%)`;
+    const bt = 0.08 + (0.9 - 0.08) * o * o;
+    const bl = 0.05 + (0.6 - 0.05) * o * o;
+    const sh = 0.6 - 0.25 * o;
+    tile.style.borderTop = `1px solid rgba(255,255,255,${bt.toFixed(2)})`;
+    tile.style.borderLeft = `1px solid rgba(255,255,255,${bl.toFixed(2)})`;
+    tile.style.boxShadow = `var(--neu-drop-lg) rgba(0,0,0,${sh.toFixed(2)}),var(--neu-lift-lg) rgba(255,255,255,${(o*0.08).toFixed(3)}),var(--neu-inset-lg) rgba(255,255,255,${o})`;
+
+    const nameEl = tile.querySelector('.tile-name');
+    const stateEl = tile.querySelector('.tile-state');
+    if (o < 0.65) {
+      const shadowO = (o / 0.65).toFixed(2);
+      if (nameEl) { nameEl.style.color = 'rgba(255,255,255,0.85)'; nameEl.style.textShadow = `0 1px 3px rgba(0,0,0,${shadowO})`; }
+      if (stateEl) { stateEl.style.color = 'rgba(255,255,255,0.35)'; stateEl.style.textShadow = `0 1px 3px rgba(0,0,0,${shadowO})`; }
+    } else {
+      if (nameEl) { nameEl.style.color = '#1c1c1e'; nameEl.style.textShadow = ''; }
+      if (stateEl) { stateEl.style.color = 'rgba(0,0,0,0.4)'; stateEl.style.textShadow = ''; }
+    }
+  },
+
+  // --- Fan Animation ---
+  _fanState: {},
+  fanLoop() {
+    if (!TileEngine._fanState) { requestAnimationFrame(TileEngine.fanLoop); return; }
+    document.querySelectorAll('.tile.type-fan').forEach(tile => {
+      const svg = tile.querySelector('.tile-icon-circle svg');
+      if (!svg) return;
+      const entityId = tile.dataset.entity;
+      if (!entityId) return;
+
+      if (!TileEngine._fanState[entityId]) TileEngine._fanState[entityId] = { angle: 0, currentSpeed: 0, targetSpeed: 0 };
+      const fs = TileEngine._fanState[entityId];
+
+      if (tile.classList.contains('fan-high')) fs.targetSpeed = 18;
+      else if (tile.classList.contains('fan-med')) fs.targetSpeed = 10;
+      else if (tile.classList.contains('fan-low')) fs.targetSpeed = 5;
+      else fs.targetSpeed = 0;
+
+      const lerp = 1 - Math.exp(-3 / (60 * TileEngine.defaults.transitionSec)); // damping=3, 60fps assumed
+      fs.currentSpeed += (fs.targetSpeed - fs.currentSpeed) * lerp;
+      if (Math.abs(fs.currentSpeed - fs.targetSpeed) < 0.01) fs.currentSpeed = fs.targetSpeed;
+
+      fs.angle = (fs.angle + fs.currentSpeed) % 360;
+      svg.style.transform = `rotate(${fs.angle}deg)`;
+    });
+    requestAnimationFrame(TileEngine.fanLoop);
+  },
+
+  // --- UI Helpers (auto-sizing sub-functions) ---
+  sizeWatermarkIcons() {
+    if (typeof window === 'undefined') return;
+    const elements = document.querySelectorAll('.tile-icon-bg');
+    if (!elements.length) return;
+    elements.forEach(bg => {
+      const tile = bg.closest('.tile');
+      if (!tile) return;
+      const tw = tile.clientWidth, th = tile.clientHeight;
+      const show = tw >= 40 && th >= 40;
+      bg.style.display = show ? 'block' : 'none';
+      if (!show) return;
+
+      const tileRect = tile.getBoundingClientRect();
+      const iconCircle = tile.querySelector('.tile-icon-circle');
+      const slider = tile.querySelector('.tile-slider-wrap');
+      const fanBtns = tile.querySelector('.tile-fan-speeds');
+
+      const cs = getComputedStyle(tile);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      const padT = parseFloat(cs.paddingTop) || 0;
+
+      const iconPad = iconCircle ? iconCircle.clientHeight * 0.3 : 5;
+      const top0 = iconCircle ? (iconCircle.getBoundingClientRect().bottom - tileRect.top + iconPad) : padT;
+      const bot0 = th * 0.75 - iconPad;
+      const right0 = slider ? (slider.getBoundingClientRect().left - tileRect.left) :
+                     fanBtns ? (fanBtns.getBoundingClientRect().left - tileRect.left) : tw;
+      const left0 = 0;
+      const deadW = right0;
+      const deadH = bot0 - top0;
+
+      const iconEl = tile.querySelector('.tile-icon-circle');
+      const iconSize = iconEl ? iconEl.clientWidth : 0;
+      const size = Math.min(iconSize * 2.5, deadW * 0.65, deadH * 0.65);
+
+      if (size < 8 || deadW < 20 || deadH < 20) {
+        bg.style.display = 'none';
+        return;
+      }
+
+      const cx = left0 + deadW / 2;
+      const cy = top0 + deadH / 2;
+
+      bg.style.width = size + 'px';
+      bg.style.height = size + 'px';
+      bg.style.left = (cx - size / 2) + 'px';
+      bg.style.top = (cy - size / 2) + 'px';
+    });
+  },
+
+  sizeRoomTabs() {
+    const elements = document.querySelectorAll('.room-tab');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
+      const text = el.textContent.trim();
+      const hasSpaces = text.includes(' ');
+      const maxW = el.clientWidth - 4;
+      const isActive = el.classList.contains('active');
+      let size = Math.min(13, Math.max(7, window.innerWidth * 0.009));
+      if (isActive) size *= 1.2;
+      el.style.fontSize = size + 'px';
+
+      if (hasSpaces) {
+        el.style.whiteSpace = 'normal';
+        const words = text.split(/\s+/);
+        size = fitWordsToWidth(el, words, maxW, size, 5);
+      } else {
+        el.style.whiteSpace = 'nowrap';
+        let tries = 0;
+        while (el.scrollWidth > el.clientWidth + 1 && size > 5 && tries < 20) {
+          size -= 0.5;
+          el.style.fontSize = size + 'px';
+          tries++;
+        }
+      }
+    });
+  },
+
+  sizeFloorTabs() {
+    const elements = document.querySelectorAll('.floor-tab');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
+      const isActive = el.classList.contains('active');
+      let size = Math.min(11, Math.max(7, window.innerHeight * 0.012));
+      if (isActive) size *= 1.2;
+      el.style.fontSize = size + 'px';
+    });
+  },
+
+  sizeTileStates() {
+    const elements = document.querySelectorAll('.tile-state');
+    if (!elements.length) return;
+    if (typeof window === 'undefined') return;
+    elements.forEach(el => {
+      let size = Math.min(13, Math.max(7, window.innerWidth * 0.0085));
+      el.style.fontSize = size + 'px';
+      let tries = 0;
+      while (el.scrollWidth > el.clientWidth + 1 && size > 6 && tries < 8) {
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+        tries++;
+      }
+    });
+  },
+
+  // Extracted: size a single tile name element
+  _sizeSingleTileName(el) {
+    if (!el) return;
+    const text = el.textContent.trim();
+    const hasSpaces = text.includes(' ');
+    const tile = el.closest('.tile');
+    if (!tile) return;
+    const hasSlider = tile.classList.contains('has-slider');
+    let size = Math.min(16, Math.max(8, window.innerWidth * 0.011));
+    el.style.fontSize = size + 'px';
+
+    const hasControls = hasSlider || tile.classList.contains('has-fan-speeds');
+    const pad = tile.clientWidth * 0.04;
+    const maxW = hasControls
+      ? (tile.clientWidth * 0.5 - pad)
+      : (tile.clientWidth - tile.clientWidth * 0.16 - pad);
+
+    if (hasSpaces) {
+      el.style.whiteSpace = 'normal';
+      el.style.display = 'block';
+      el.style.maxWidth = maxW + 'px';
+      el.style.overflow = 'visible';
+      const words = text.split(/\s+/);
+      size = fitWordsToWidth(el, words, maxW, size, 5);
+    } else {
+      el.style.whiteSpace = 'nowrap';
+      el.style.display = 'block';
+      el.style.maxWidth = maxW + 'px';
+      el.style.overflow = 'visible';
+      size = fitWordsToWidth(el, [text], maxW, size, 5);
+    }
+
+    this._shrinkToFitTile(el, tile, size);
+  },
+
+  // Shrink font until the bottom section fits within the tile boundary
+  _shrinkToFitTile(el, tile, size) {
+    if (!el || !tile) return;
+    const bottom = el.closest('.tile-bottom') || el.closest('.tile-bottom-media');
+    if (!bottom) return;
+    const tileRect = tile.getBoundingClientRect();
+    let tries = 0;
+    while (bottom.getBoundingClientRect().bottom > tileRect.bottom && size > 5 && tries < 20) {
+      size -= 0.5;
+      el.style.fontSize = size + 'px';
+      tries++;
+    }
+  },
+
+  sizeTileNames() {
+    const elements = document.querySelectorAll('.tile-name');
+    if (!elements.length) return;
+    elements.forEach(el => TileEngine._sizeSingleTileName(el));
+  },
+
+  autoSizeNames() {
+    this.sizeWatermarkIcons();
+    this.sizeRoomTabs();
+    this.sizeFloorTabs();
+    this.sizeTileStates();
+    this.sizeTileNames();
+  },
+
+  // --- Engine Init ---
+  _origRender: null,
+
+  // Update media progress bar fills based on elapsed playback time
+  _updateProgressBars() {
+    if (typeof stateCache === 'undefined') return;
+    if (!TileEngine.registry.media) return;
+    document.querySelectorAll('.tile.tile-wide .tile-progress-fill').forEach(fill => {
+      const tile = fill.closest('.tile');
+      if (!tile) return;
+      const durationKey = Object.keys(stateCache).find(k =>
+        k.endsWith('_duration') && tile.querySelector(`[onclick*="${k.replace('_duration','')}"]`)
+      );
+      if (!durationKey) return;
+      const id = durationKey.replace('_duration', '');
+      const mediaDef = TileEngine.registry.media;
+      if (mediaDef && mediaDef.getMediaPosition) {
+        const { pos, dur } = mediaDef.getMediaPosition(id);
+        if (dur > 0) fill.style.width = Math.min(100, Math.round((pos / dur) * 100)) + '%';
+      }
+    });
+  },
+
+  initTileEngine() {
+    this._origRender = render;
+    render = function() {
+      TileEngine._origRender();
+      requestAnimationFrame(() => TileEngine.autoSizeNames());
+    };
+
+    requestAnimationFrame(TileEngine.dimAnimLoop);
+    requestAnimationFrame(TileEngine.fanLoop);
+
+    // stateCache is bounded by entity count (keys are fixed at init, not dynamically added)
+    setInterval(TileEngine._updateProgressBars, 1000);
+  }
+};
+
+// --- Global function bindings (for onclick handlers in tile HTML) ---
+function toggleEntity(entityId) {
+  if (!entityId) return;
+  if (Date.now() < TileEngine.sliderActiveUntil) return;
+  const type = HubitatAPI.deviceTypeMap[entityId];
+  const handler = TileEngine.toggleHandlers[type];
+  if (handler) handler(entityId);
+}
+function startDim(e) { TileEngine.startDim(e); }
+function setBrightness(id, val) { TileEngine.setBrightness(id, val); }
+function setVolume(id, val) { TileEngine.setVolume(id, val); }
+function calcGrid(count, w, h) { return TileEngine.calcGrid(count, w, h); }
+function renderTile(e) { return TileEngine.renderTile(e); }
+function formatState(e) { return TileEngine.formatState(e); }
+function isOn(e) { return TileEngine.isOn(e); }
+function isSensor(e) { return TileEngine.isSensor(e); }
+function isAlert(e) { return TileEngine.isAlert(e); }
+function tilePriority(e) { return TileEngine.tilePriority(e); }
+function autoSizeNames() { TileEngine.autoSizeNames(); }
+function initTileEngine() { TileEngine.initTileEngine(); }
+function isDimLocked(id) { return TileEngine.isLocked(id); }
+function animateBrightness(a, b, c, d, e) { TileEngine.animateBrightness(a, b, c, d, e); }
+function cancelAnimation(id) { TileEngine.cancelAnimation(id); }
+// Expose dimAnimations globally for WebSocket handler in dashboard
+const dimAnimations = TileEngine.dimAnimations;
